@@ -1,12 +1,13 @@
-# Generated from ANTLRv4Parser.g4 by ANTLR 4.5.3
+# Generated from ANTLRv4Parser.g4 by ANTLR 4.7
 # encoding: utf-8
 from __future__ import print_function
 from antlr4 import *
 from io import StringIO
+import sys
 
 def serializedATN():
     with StringIO() as buf:
-        buf.write(u"\3\u0430\ud6d1\u8206\uad2d\u4417\uaef1\u8d80\uaadd\3")
+        buf.write(u"\3\u608b\ua72a\u8133\ub9ed\u417c\u3be7\u7786\u5964\3")
         buf.write(u"?\u0282\4\2\t\2\4\3\t\3\4\4\t\4\4\5\t\5\4\6\t\6\4\7\t")
         buf.write(u"\7\4\b\t\b\4\t\t\t\4\n\t\n\4\13\t\13\4\f\t\f\4\r\t\r")
         buf.write(u"\4\16\t\16\4\17\t\17\4\20\t\20\4\21\t\21\4\22\t\22\4")
@@ -72,13 +73,13 @@ def serializedATN():
         buf.write(u"?\3?\5?\u027c\n?\5?\u027e\n?\3@\3@\3@\2\2A\2\4\6\b\n")
         buf.write(u"\f\16\20\22\24\26\30\32\34\36 \"$&(*,.\60\62\64\668:")
         buf.write(u"<>@BDFHJLNPRTVXZ\\^`bdfhjlnprtvxz|~\2\5\4\2\22\22\26")
-        buf.write(u"\30\4\2**--\3\2\3\4\u02aa\2\u0083\3\2\2\2\4\u009d\3\2")
-        buf.write(u"\2\2\6\u00a4\3\2\2\2\b\u00a6\3\2\2\2\n\u00b2\3\2\2\2")
-        buf.write(u"\f\u00c1\3\2\2\2\16\u00c3\3\2\2\2\20\u00d3\3\2\2\2\22")
-        buf.write(u"\u00d5\3\2\2\2\24\u00dc\3\2\2\2\26\u00e3\3\2\2\2\30\u00ee")
-        buf.write(u"\3\2\2\2\32\u00fa\3\2\2\2\34\u00fc\3\2\2\2\36\u0105\3")
-        buf.write(u"\2\2\2 \u010e\3\2\2\2\"\u011a\3\2\2\2$\u011f\3\2\2\2")
-        buf.write(u"&\u0124\3\2\2\2(\u0145\3\2\2\2*\u014b\3\2\2\2,\u014f")
+        buf.write(u"\30\4\2**--\3\2\3\4\2\u02aa\2\u0083\3\2\2\2\4\u009d\3")
+        buf.write(u"\2\2\2\6\u00a4\3\2\2\2\b\u00a6\3\2\2\2\n\u00b2\3\2\2")
+        buf.write(u"\2\f\u00c1\3\2\2\2\16\u00c3\3\2\2\2\20\u00d3\3\2\2\2")
+        buf.write(u"\22\u00d5\3\2\2\2\24\u00dc\3\2\2\2\26\u00e3\3\2\2\2\30")
+        buf.write(u"\u00ee\3\2\2\2\32\u00fa\3\2\2\2\34\u00fc\3\2\2\2\36\u0105")
+        buf.write(u"\3\2\2\2 \u010e\3\2\2\2\"\u011a\3\2\2\2$\u011f\3\2\2")
+        buf.write(u"\2&\u0124\3\2\2\2(\u0145\3\2\2\2*\u014b\3\2\2\2,\u014f")
         buf.write(u"\3\2\2\2.\u0154\3\2\2\2\60\u0156\3\2\2\2\62\u0159\3\2")
         buf.write(u"\2\2\64\u0162\3\2\2\2\66\u0165\3\2\2\28\u016a\3\2\2\2")
         buf.write(u":\u016e\3\2\2\2<\u0170\3\2\2\2>\u0172\3\2\2\2@\u017a")
@@ -506,9 +507,9 @@ class ANTLRv4Parser ( Parser ):
     ACTION_CONTENT=60
     UNTERMINATED_CHAR_SET=61
 
-    def __init__(self, input):
-        super(ANTLRv4Parser, self).__init__(input)
-        self.checkVersion("4.5.3")
+    def __init__(self, input, output=sys.stdout):
+        super(ANTLRv4Parser, self).__init__(input, output=output)
+        self.checkVersion("4.7")
         self._interp = ParserATNSimulator(self, self.atn, self.decisionsToDFA, self.sharedContextCache)
         self._predicates = None
 
@@ -663,23 +664,24 @@ class ANTLRv4Parser ( Parser ):
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 155
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [ANTLRv4Parser.LEXER]:
                 self.state = 150
                 self.match(ANTLRv4Parser.LEXER)
                 self.state = 151
                 self.match(ANTLRv4Parser.GRAMMAR)
-
+                pass
             elif token in [ANTLRv4Parser.PARSER]:
                 self.state = 152
                 self.match(ANTLRv4Parser.PARSER)
                 self.state = 153
                 self.match(ANTLRv4Parser.GRAMMAR)
-
+                pass
             elif token in [ANTLRv4Parser.GRAMMAR]:
                 self.state = 154
                 self.match(ANTLRv4Parser.GRAMMAR)
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -737,32 +739,33 @@ class ANTLRv4Parser ( Parser ):
         self.enterRule(localctx, 4, self.RULE_prequelConstruct)
         try:
             self.state = 162
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [ANTLRv4Parser.OPTIONS]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 157
                 self.optionsSpec()
-
+                pass
             elif token in [ANTLRv4Parser.IMPORT]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 158
                 self.delegateGrammars()
-
+                pass
             elif token in [ANTLRv4Parser.TOKENS]:
                 self.enterOuterAlt(localctx, 3)
                 self.state = 159
                 self.tokensSpec()
-
+                pass
             elif token in [ANTLRv4Parser.CHANNELS]:
                 self.enterOuterAlt(localctx, 4)
                 self.state = 160
                 self.channelsSpec()
-
+                pass
             elif token in [ANTLRv4Parser.AT]:
                 self.enterOuterAlt(localctx, 5)
                 self.state = 161
                 self.action()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -950,6 +953,7 @@ class ANTLRv4Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.state = 191
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [ANTLRv4Parser.TOKEN_REF, ANTLRv4Parser.RULE_REF]:
                 self.enterOuterAlt(localctx, 1)
@@ -967,22 +971,22 @@ class ANTLRv4Parser ( Parser ):
                     self._errHandler.sync(self)
                     _la = self._input.LA(1)
 
-
+                pass
             elif token in [ANTLRv4Parser.STRING_LITERAL]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 188
                 self.match(ANTLRv4Parser.STRING_LITERAL)
-
+                pass
             elif token in [ANTLRv4Parser.BEGIN_ACTION]:
                 self.enterOuterAlt(localctx, 3)
                 self.state = 189
                 self.actionBlock()
-
+                pass
             elif token in [ANTLRv4Parser.INT]:
                 self.enterOuterAlt(localctx, 4)
                 self.state = 190
                 self.match(ANTLRv4Parser.INT)
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -1102,7 +1106,7 @@ class ANTLRv4Parser ( Parser ):
         self.enterRule(localctx, 14, self.RULE_delegateGrammar)
         try:
             self.state = 209
-            self._errHandler.sync(self);
+            self._errHandler.sync(self)
             la_ = self._interp.adaptivePredict(self._input,9,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
@@ -1174,6 +1178,7 @@ class ANTLRv4Parser ( Parser ):
             self.state = 212
             self.match(ANTLRv4Parser.LBRACE)
             self.state = 214
+            self._errHandler.sync(self)
             _la = self._input.LA(1)
             if _la==ANTLRv4Parser.TOKEN_REF or _la==ANTLRv4Parser.RULE_REF:
                 self.state = 213
@@ -1235,6 +1240,7 @@ class ANTLRv4Parser ( Parser ):
             self.state = 219
             self.match(ANTLRv4Parser.LBRACE)
             self.state = 221
+            self._errHandler.sync(self)
             _la = self._input.LA(1)
             if _la==ANTLRv4Parser.TOKEN_REF or _la==ANTLRv4Parser.RULE_REF:
                 self.state = 220
@@ -1307,6 +1313,7 @@ class ANTLRv4Parser ( Parser ):
                 _alt = self._interp.adaptivePredict(self._input,12,self._ctx)
 
             self.state = 234
+            self._errHandler.sync(self)
             _la = self._input.LA(1)
             if _la==ANTLRv4Parser.COMMA:
                 self.state = 233
@@ -1368,7 +1375,7 @@ class ANTLRv4Parser ( Parser ):
             self.state = 236
             self.match(ANTLRv4Parser.AT)
             self.state = 240
-            self._errHandler.sync(self);
+            self._errHandler.sync(self)
             la_ = self._interp.adaptivePredict(self._input,14,self._ctx)
             if la_ == 1:
                 self.state = 237
@@ -1425,22 +1432,23 @@ class ANTLRv4Parser ( Parser ):
         self.enterRule(localctx, 24, self.RULE_actionScopeName)
         try:
             self.state = 248
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [ANTLRv4Parser.TOKEN_REF, ANTLRv4Parser.RULE_REF]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 245
                 self.identifier()
-
+                pass
             elif token in [ANTLRv4Parser.LEXER]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 246
                 self.match(ANTLRv4Parser.LEXER)
-
+                pass
             elif token in [ANTLRv4Parser.PARSER]:
                 self.enterOuterAlt(localctx, 3)
                 self.state = 247
                 self.match(ANTLRv4Parser.PARSER)
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -1728,7 +1736,7 @@ class ANTLRv4Parser ( Parser ):
         self.enterRule(localctx, 34, self.RULE_ruleSpec)
         try:
             self.state = 285
-            self._errHandler.sync(self);
+            self._errHandler.sync(self)
             la_ = self._interp.adaptivePredict(self._input,20,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
@@ -1839,6 +1847,7 @@ class ANTLRv4Parser ( Parser ):
                 _la = self._input.LA(1)
 
             self.state = 294
+            self._errHandler.sync(self)
             _la = self._input.LA(1)
             if (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << ANTLRv4Parser.FRAGMENT) | (1 << ANTLRv4Parser.PROTECTED) | (1 << ANTLRv4Parser.PUBLIC) | (1 << ANTLRv4Parser.PRIVATE))) != 0):
                 self.state = 293
@@ -1848,6 +1857,7 @@ class ANTLRv4Parser ( Parser ):
             self.state = 296
             self.match(ANTLRv4Parser.RULE_REF)
             self.state = 298
+            self._errHandler.sync(self)
             _la = self._input.LA(1)
             if _la==ANTLRv4Parser.BEGIN_ARGUMENT:
                 self.state = 297
@@ -1855,6 +1865,7 @@ class ANTLRv4Parser ( Parser ):
 
 
             self.state = 301
+            self._errHandler.sync(self)
             _la = self._input.LA(1)
             if _la==ANTLRv4Parser.RETURNS:
                 self.state = 300
@@ -1862,6 +1873,7 @@ class ANTLRv4Parser ( Parser ):
 
 
             self.state = 304
+            self._errHandler.sync(self)
             _la = self._input.LA(1)
             if _la==ANTLRv4Parser.THROWS:
                 self.state = 303
@@ -1869,6 +1881,7 @@ class ANTLRv4Parser ( Parser ):
 
 
             self.state = 307
+            self._errHandler.sync(self)
             _la = self._input.LA(1)
             if _la==ANTLRv4Parser.LOCALS:
                 self.state = 306
@@ -1950,6 +1963,7 @@ class ANTLRv4Parser ( Parser ):
                 _la = self._input.LA(1)
 
             self.state = 327
+            self._errHandler.sync(self)
             _la = self._input.LA(1)
             if _la==ANTLRv4Parser.FINALLY:
                 self.state = 326
@@ -2094,17 +2108,18 @@ class ANTLRv4Parser ( Parser ):
         self.enterRule(localctx, 44, self.RULE_rulePrequel)
         try:
             self.state = 338
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [ANTLRv4Parser.OPTIONS]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 336
                 self.optionsSpec()
-
+                pass
             elif token in [ANTLRv4Parser.AT]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 337
                 self.ruleAction()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -2422,6 +2437,7 @@ class ANTLRv4Parser ( Parser ):
             if not((((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << ANTLRv4Parser.FRAGMENT) | (1 << ANTLRv4Parser.PROTECTED) | (1 << ANTLRv4Parser.PUBLIC) | (1 << ANTLRv4Parser.PRIVATE))) != 0)):
                 self._errHandler.recoverInline(self)
             else:
+                self._errHandler.reportMatch(self)
                 self.consume()
         except RecognitionException as re:
             localctx.exception = re
@@ -2574,6 +2590,7 @@ class ANTLRv4Parser ( Parser ):
             self.state = 376
             self.alternative()
             self.state = 379
+            self._errHandler.sync(self)
             _la = self._input.LA(1)
             if _la==ANTLRv4Parser.POUND:
                 self.state = 377
@@ -2650,6 +2667,7 @@ class ANTLRv4Parser ( Parser ):
                 _la = self._input.LA(1)
 
             self.state = 388
+            self._errHandler.sync(self)
             _la = self._input.LA(1)
             if _la==ANTLRv4Parser.FRAGMENT:
                 self.state = 387
@@ -2809,23 +2827,25 @@ class ANTLRv4Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.state = 410
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [ANTLRv4Parser.TOKEN_REF, ANTLRv4Parser.RULE_REF, ANTLRv4Parser.LEXER_CHAR_SET, ANTLRv4Parser.STRING_LITERAL, ANTLRv4Parser.BEGIN_ACTION, ANTLRv4Parser.LPAREN, ANTLRv4Parser.DOT, ANTLRv4Parser.NOT]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 405
                 self.lexerElements()
                 self.state = 407
+                self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if _la==ANTLRv4Parser.RARROW:
                     self.state = 406
                     self.lexerCommands()
 
 
-
+                pass
             elif token in [ANTLRv4Parser.SEMI, ANTLRv4Parser.RPAREN, ANTLRv4Parser.OR]:
                 self.enterOuterAlt(localctx, 2)
 
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -2941,13 +2961,14 @@ class ANTLRv4Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.state = 433
-            self._errHandler.sync(self);
+            self._errHandler.sync(self)
             la_ = self._interp.adaptivePredict(self._input,45,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 417
                 self.labeledLexerElement()
                 self.state = 419
+                self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << ANTLRv4Parser.QUESTION) | (1 << ANTLRv4Parser.STAR) | (1 << ANTLRv4Parser.PLUS))) != 0):
                     self.state = 418
@@ -2961,6 +2982,7 @@ class ANTLRv4Parser ( Parser ):
                 self.state = 421
                 self.lexerAtom()
                 self.state = 423
+                self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << ANTLRv4Parser.QUESTION) | (1 << ANTLRv4Parser.STAR) | (1 << ANTLRv4Parser.PLUS))) != 0):
                     self.state = 422
@@ -2974,6 +2996,7 @@ class ANTLRv4Parser ( Parser ):
                 self.state = 425
                 self.lexerBlock()
                 self.state = 427
+                self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << ANTLRv4Parser.QUESTION) | (1 << ANTLRv4Parser.STAR) | (1 << ANTLRv4Parser.PLUS))) != 0):
                     self.state = 426
@@ -2987,6 +3010,7 @@ class ANTLRv4Parser ( Parser ):
                 self.state = 429
                 self.actionBlock()
                 self.state = 431
+                self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if _la==ANTLRv4Parser.QUESTION:
                     self.state = 430
@@ -3056,17 +3080,19 @@ class ANTLRv4Parser ( Parser ):
             if not(_la==ANTLRv4Parser.ASSIGN or _la==ANTLRv4Parser.PLUS_ASSIGN):
                 self._errHandler.recoverInline(self)
             else:
+                self._errHandler.reportMatch(self)
                 self.consume()
             self.state = 439
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [ANTLRv4Parser.TOKEN_REF, ANTLRv4Parser.LEXER_CHAR_SET, ANTLRv4Parser.STRING_LITERAL, ANTLRv4Parser.DOT, ANTLRv4Parser.NOT]:
                 self.state = 437
                 self.lexerAtom()
-
+                pass
             elif token in [ANTLRv4Parser.LPAREN]:
                 self.state = 438
                 self.lexerBlock()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -3235,7 +3261,7 @@ class ANTLRv4Parser ( Parser ):
         self.enterRule(localctx, 82, self.RULE_lexerCommand)
         try:
             self.state = 460
-            self._errHandler.sync(self);
+            self._errHandler.sync(self)
             la_ = self._interp.adaptivePredict(self._input,48,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
@@ -3297,17 +3323,18 @@ class ANTLRv4Parser ( Parser ):
         self.enterRule(localctx, 84, self.RULE_lexerCommandName)
         try:
             self.state = 464
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [ANTLRv4Parser.TOKEN_REF, ANTLRv4Parser.RULE_REF]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 462
                 self.identifier()
-
+                pass
             elif token in [ANTLRv4Parser.MODE]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 463
                 self.match(ANTLRv4Parser.MODE)
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -3352,17 +3379,18 @@ class ANTLRv4Parser ( Parser ):
         self.enterRule(localctx, 86, self.RULE_lexerCommandExpr)
         try:
             self.state = 468
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [ANTLRv4Parser.TOKEN_REF, ANTLRv4Parser.RULE_REF]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 466
                 self.identifier()
-
+                pass
             elif token in [ANTLRv4Parser.INT]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 467
                 self.match(ANTLRv4Parser.INT)
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -3474,10 +3502,12 @@ class ANTLRv4Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.state = 487
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [ANTLRv4Parser.TOKEN_REF, ANTLRv4Parser.RULE_REF, ANTLRv4Parser.STRING_LITERAL, ANTLRv4Parser.BEGIN_ACTION, ANTLRv4Parser.LPAREN, ANTLRv4Parser.LT, ANTLRv4Parser.DOT, ANTLRv4Parser.NOT]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 479
+                self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if _la==ANTLRv4Parser.LT:
                     self.state = 478
@@ -3496,11 +3526,11 @@ class ANTLRv4Parser ( Parser ):
                     if not ((((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << ANTLRv4Parser.TOKEN_REF) | (1 << ANTLRv4Parser.RULE_REF) | (1 << ANTLRv4Parser.STRING_LITERAL) | (1 << ANTLRv4Parser.BEGIN_ACTION) | (1 << ANTLRv4Parser.LPAREN) | (1 << ANTLRv4Parser.DOT) | (1 << ANTLRv4Parser.NOT))) != 0)):
                         break
 
-
+                pass
             elif token in [ANTLRv4Parser.SEMI, ANTLRv4Parser.RPAREN, ANTLRv4Parser.OR, ANTLRv4Parser.POUND]:
                 self.enterOuterAlt(localctx, 2)
 
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -3562,20 +3592,21 @@ class ANTLRv4Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.state = 504
-            self._errHandler.sync(self);
+            self._errHandler.sync(self)
             la_ = self._interp.adaptivePredict(self._input,58,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 489
                 self.labeledElement()
                 self.state = 492
+                self._errHandler.sync(self)
                 token = self._input.LA(1)
                 if token in [ANTLRv4Parser.QUESTION, ANTLRv4Parser.STAR, ANTLRv4Parser.PLUS]:
                     self.state = 490
                     self.ebnfSuffix()
-
+                    pass
                 elif token in [ANTLRv4Parser.TOKEN_REF, ANTLRv4Parser.RULE_REF, ANTLRv4Parser.STRING_LITERAL, ANTLRv4Parser.BEGIN_ACTION, ANTLRv4Parser.SEMI, ANTLRv4Parser.LPAREN, ANTLRv4Parser.RPAREN, ANTLRv4Parser.OR, ANTLRv4Parser.DOT, ANTLRv4Parser.POUND, ANTLRv4Parser.NOT]:
-
+                    pass
                 else:
                     raise NoViableAltException(self)
 
@@ -3586,13 +3617,14 @@ class ANTLRv4Parser ( Parser ):
                 self.state = 494
                 self.atom()
                 self.state = 497
+                self._errHandler.sync(self)
                 token = self._input.LA(1)
                 if token in [ANTLRv4Parser.QUESTION, ANTLRv4Parser.STAR, ANTLRv4Parser.PLUS]:
                     self.state = 495
                     self.ebnfSuffix()
-
+                    pass
                 elif token in [ANTLRv4Parser.TOKEN_REF, ANTLRv4Parser.RULE_REF, ANTLRv4Parser.STRING_LITERAL, ANTLRv4Parser.BEGIN_ACTION, ANTLRv4Parser.SEMI, ANTLRv4Parser.LPAREN, ANTLRv4Parser.RPAREN, ANTLRv4Parser.OR, ANTLRv4Parser.DOT, ANTLRv4Parser.POUND, ANTLRv4Parser.NOT]:
-
+                    pass
                 else:
                     raise NoViableAltException(self)
 
@@ -3609,6 +3641,7 @@ class ANTLRv4Parser ( Parser ):
                 self.state = 500
                 self.actionBlock()
                 self.state = 502
+                self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if _la==ANTLRv4Parser.QUESTION:
                     self.state = 501
@@ -3678,17 +3711,19 @@ class ANTLRv4Parser ( Parser ):
             if not(_la==ANTLRv4Parser.ASSIGN or _la==ANTLRv4Parser.PLUS_ASSIGN):
                 self._errHandler.recoverInline(self)
             else:
+                self._errHandler.reportMatch(self)
                 self.consume()
             self.state = 510
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [ANTLRv4Parser.TOKEN_REF, ANTLRv4Parser.RULE_REF, ANTLRv4Parser.STRING_LITERAL, ANTLRv4Parser.DOT, ANTLRv4Parser.NOT]:
                 self.state = 508
                 self.atom()
-
+                pass
             elif token in [ANTLRv4Parser.LPAREN]:
                 self.state = 509
                 self.block()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -3738,6 +3773,7 @@ class ANTLRv4Parser ( Parser ):
             self.state = 512
             self.block()
             self.state = 514
+            self._errHandler.sync(self)
             _la = self._input.LA(1)
             if (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << ANTLRv4Parser.QUESTION) | (1 << ANTLRv4Parser.STAR) | (1 << ANTLRv4Parser.PLUS))) != 0):
                 self.state = 513
@@ -3831,43 +3867,47 @@ class ANTLRv4Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.state = 530
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [ANTLRv4Parser.QUESTION]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 518
                 self.match(ANTLRv4Parser.QUESTION)
                 self.state = 520
+                self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if _la==ANTLRv4Parser.QUESTION:
                     self.state = 519
                     self.match(ANTLRv4Parser.QUESTION)
 
 
-
+                pass
             elif token in [ANTLRv4Parser.STAR]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 522
                 self.match(ANTLRv4Parser.STAR)
                 self.state = 524
+                self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if _la==ANTLRv4Parser.QUESTION:
                     self.state = 523
                     self.match(ANTLRv4Parser.QUESTION)
 
 
-
+                pass
             elif token in [ANTLRv4Parser.PLUS]:
                 self.enterOuterAlt(localctx, 3)
                 self.state = 526
                 self.match(ANTLRv4Parser.PLUS)
                 self.state = 528
+                self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if _la==ANTLRv4Parser.QUESTION:
                     self.state = 527
                     self.match(ANTLRv4Parser.QUESTION)
 
 
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -3928,7 +3968,7 @@ class ANTLRv4Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.state = 540
-            self._errHandler.sync(self);
+            self._errHandler.sync(self)
             la_ = self._interp.adaptivePredict(self._input,66,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
@@ -3959,6 +3999,7 @@ class ANTLRv4Parser ( Parser ):
                 self.state = 536
                 self.match(ANTLRv4Parser.DOT)
                 self.state = 538
+                self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if _la==ANTLRv4Parser.LT:
                     self.state = 537
@@ -4022,34 +4063,36 @@ class ANTLRv4Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.state = 549
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [ANTLRv4Parser.TOKEN_REF, ANTLRv4Parser.STRING_LITERAL]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 542
                 self.terminal()
-
+                pass
             elif token in [ANTLRv4Parser.RULE_REF]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 543
                 self.ruleref()
-
+                pass
             elif token in [ANTLRv4Parser.NOT]:
                 self.enterOuterAlt(localctx, 3)
                 self.state = 544
                 self.notSet()
-
+                pass
             elif token in [ANTLRv4Parser.DOT]:
                 self.enterOuterAlt(localctx, 4)
                 self.state = 545
                 self.match(ANTLRv4Parser.DOT)
                 self.state = 547
+                self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if _la==ANTLRv4Parser.LT:
                     self.state = 546
                     self.elementOptions()
 
 
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -4098,7 +4141,7 @@ class ANTLRv4Parser ( Parser ):
         self.enterRule(localctx, 106, self.RULE_notSet)
         try:
             self.state = 555
-            self._errHandler.sync(self);
+            self._errHandler.sync(self)
             la_ = self._interp.adaptivePredict(self._input,69,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
@@ -4241,13 +4284,14 @@ class ANTLRv4Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.state = 578
-            self._errHandler.sync(self);
+            self._errHandler.sync(self)
             la_ = self._interp.adaptivePredict(self._input,73,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 568
                 self.match(ANTLRv4Parser.TOKEN_REF)
                 self.state = 570
+                self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if _la==ANTLRv4Parser.LT:
                     self.state = 569
@@ -4261,6 +4305,7 @@ class ANTLRv4Parser ( Parser ):
                 self.state = 572
                 self.match(ANTLRv4Parser.STRING_LITERAL)
                 self.state = 574
+                self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if _la==ANTLRv4Parser.LT:
                     self.state = 573
@@ -4344,9 +4389,11 @@ class ANTLRv4Parser ( Parser ):
             self.state = 580
             self.match(ANTLRv4Parser.LPAREN)
             self.state = 591
+            self._errHandler.sync(self)
             _la = self._input.LA(1)
             if (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << ANTLRv4Parser.OPTIONS) | (1 << ANTLRv4Parser.COLON) | (1 << ANTLRv4Parser.AT))) != 0):
                 self.state = 582
+                self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if _la==ANTLRv4Parser.OPTIONS:
                     self.state = 581
@@ -4420,6 +4467,7 @@ class ANTLRv4Parser ( Parser ):
             self.state = 596
             self.match(ANTLRv4Parser.RULE_REF)
             self.state = 598
+            self._errHandler.sync(self)
             _la = self._input.LA(1)
             if _la==ANTLRv4Parser.BEGIN_ARGUMENT:
                 self.state = 597
@@ -4427,6 +4475,7 @@ class ANTLRv4Parser ( Parser ):
 
 
             self.state = 601
+            self._errHandler.sync(self)
             _la = self._input.LA(1)
             if _la==ANTLRv4Parser.LT:
                 self.state = 600
@@ -4527,31 +4576,34 @@ class ANTLRv4Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.state = 615
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [ANTLRv4Parser.TOKEN_REF]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 607
                 self.match(ANTLRv4Parser.TOKEN_REF)
                 self.state = 609
+                self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if _la==ANTLRv4Parser.LT:
                     self.state = 608
                     self.elementOptions()
 
 
-
+                pass
             elif token in [ANTLRv4Parser.STRING_LITERAL]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 611
                 self.match(ANTLRv4Parser.STRING_LITERAL)
                 self.state = 613
+                self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if _la==ANTLRv4Parser.LT:
                     self.state = 612
                     self.elementOptions()
 
 
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -4674,7 +4726,7 @@ class ANTLRv4Parser ( Parser ):
         self.enterRule(localctx, 122, self.RULE_elementOption)
         try:
             self.state = 635
-            self._errHandler.sync(self);
+            self._errHandler.sync(self)
             la_ = self._interp.adaptivePredict(self._input,84,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
@@ -4689,15 +4741,16 @@ class ANTLRv4Parser ( Parser ):
                 self.state = 630
                 self.match(ANTLRv4Parser.ASSIGN)
                 self.state = 633
+                self._errHandler.sync(self)
                 token = self._input.LA(1)
                 if token in [ANTLRv4Parser.TOKEN_REF, ANTLRv4Parser.RULE_REF]:
                     self.state = 631
                     self.identifier()
-
+                    pass
                 elif token in [ANTLRv4Parser.STRING_LITERAL]:
                     self.state = 632
                     self.match(ANTLRv4Parser.STRING_LITERAL)
-
+                    pass
                 else:
                     raise NoViableAltException(self)
 
@@ -4750,6 +4803,7 @@ class ANTLRv4Parser ( Parser ):
             if not(_la==ANTLRv4Parser.TOKEN_REF or _la==ANTLRv4Parser.RULE_REF):
                 self._errHandler.recoverInline(self)
             else:
+                self._errHandler.reportMatch(self)
                 self.consume()
         except RecognitionException as re:
             localctx.exception = re

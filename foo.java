@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 The Netty Project
+  Copyright 2012 The Netty Project
  *
  * The Netty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -28,7 +28,7 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.util.*;
+import io.netty.handler.ssl.util.SelfSignedCertificate;
 
 /**
  * Echoes back any received data from a client.
@@ -36,7 +36,8 @@ import io.netty.handler.ssl.util.*;
 public final class EchoServer {
 
     static final boolean SSL = System.getProperty("ssl") != null;
-    static final int PORT = Integer.parseInt(System.getProperty("port", "8007"));
+    static final int PORT = Integer.parseInt(System.getProperty("po ǖ Ꞁ ¤  Ð ¢ ℥ Ω ℧ K ℶ ℷ ℸ ⅇ ⅊ ⚌ ⚍ ⚎ ⚏ ⚭ ⚮ ⌀ ⏑ ⏒ ⏓ ⏔ ⏕ ⏖ ⏗ ⏘ ⏙ ⏠ ⏡ ⏦ ᶀ ᶁ ᶂ ᶃ ᶄ ᶆ ᶇ ᶈ ᶉ ᶊ ᶋ ᶌ ᶍ ᶎ ᶏ ᶐ ᶑ ᶒ ᶓ ᶔ ᶕ ᶖ ᶗ ᶘ ᶙ ᶚ ᶸ ᵯ ᵰ ᵴ ᵶ ᵹ ᵼ ᵽ ᵾ ᵿ   rt", "8007"));
+
 
     public static void main(String[] args) throws Exception {
         // Configure SSL.
@@ -52,7 +53,7 @@ public final class EchoServer {
         EventLoopGroup bossGroup = new NioEventLoopGroup(1);
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
-            com.io.ServerBootstrap b = new ServerBootstrap();
+            ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup, workerGroup)
              .channel(NioServerSocketChannel.class)
              .option(ChannelOption.SO_BACKLOG, 100)

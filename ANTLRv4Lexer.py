@@ -1,8 +1,9 @@
-# Generated from ANTLRv4Lexer.g4 by ANTLR 4.5.3
+# Generated from ANTLRv4Lexer.g4 by ANTLR 4.7
 # encoding: utf-8
 from __future__ import print_function
 from antlr4 import *
 from io import StringIO
+import sys
 
 
 from LexerAdaptor import LexerAdaptor
@@ -10,7 +11,7 @@ from LexerAdaptor import LexerAdaptor
 
 def serializedATN():
     with StringIO() as buf:
-        buf.write(u"\3\u0430\ud6d1\u8206\uad2d\u4417\uaef1\u8d80\uaadd\2")
+        buf.write(u"\3\u608b\ua72a\u8133\ub9ed\u417c\u3be7\u7786\u5964\2")
         buf.write(u"?\u03c6\b\1\b\1\b\1\b\1\b\1\b\1\b\1\4\2\t\2\4\3\t\3\4")
         buf.write(u"\4\t\4\4\5\t\5\4\6\t\6\4\7\t\7\4\b\t\b\4\t\t\t\4\n\t")
         buf.write(u"\n\4\13\t\13\4\f\t\f\4\r\t\r\4\16\t\16\4\17\t\17\4\20")
@@ -120,19 +121,19 @@ def serializedATN():
         buf.write(u"$$^^\5\2\u00b9\u00b9\u0302\u0371\u2041\u2042\17\2C\\")
         buf.write(u"c|\u00c2\u00d8\u00da\u00f8\u00fa\u0301\u0372\u037f\u0381")
         buf.write(u"\u2001\u200e\u200f\u2072\u2191\u2c02\u2ff1\u3003\ud801")
-        buf.write(u"\uf902\ufdd1\ufdf2\uffff\3\2^_\u03ae\2\t\3\2\2\2\2\13")
-        buf.write(u"\3\2\2\2\2\r\3\2\2\2\2\17\3\2\2\2\2\21\3\2\2\2\2\23\3")
-        buf.write(u"\2\2\2\2\25\3\2\2\2\2\27\3\2\2\2\2\31\3\2\2\2\2\33\3")
-        buf.write(u"\2\2\2\2\35\3\2\2\2\2\37\3\2\2\2\2!\3\2\2\2\2#\3\2\2")
-        buf.write(u"\2\2%\3\2\2\2\2\'\3\2\2\2\2)\3\2\2\2\2+\3\2\2\2\2-\3")
-        buf.write(u"\2\2\2\2/\3\2\2\2\2\61\3\2\2\2\2\63\3\2\2\2\2\65\3\2")
-        buf.write(u"\2\2\2\67\3\2\2\2\29\3\2\2\2\2;\3\2\2\2\2=\3\2\2\2\2")
-        buf.write(u"?\3\2\2\2\2A\3\2\2\2\2C\3\2\2\2\2E\3\2\2\2\2G\3\2\2\2")
-        buf.write(u"\2I\3\2\2\2\2K\3\2\2\2\2M\3\2\2\2\2O\3\2\2\2\2Q\3\2\2")
-        buf.write(u"\2\2S\3\2\2\2\2U\3\2\2\2\2W\3\2\2\2\2Y\3\2\2\2\2[\3\2")
-        buf.write(u"\2\2\2]\3\2\2\2\2_\3\2\2\2\2a\3\2\2\2\2c\3\2\2\2\2e\3")
-        buf.write(u"\2\2\2\2g\3\2\2\2\2i\3\2\2\2\2k\3\2\2\2\2m\3\2\2\2\3")
-        buf.write(u"\u00d1\3\2\2\2\3\u00d3\3\2\2\2\3\u00d5\3\2\2\2\3\u00d7")
+        buf.write(u"\uf902\ufdd1\ufdf2\uffff\3\2^_\2\u03ae\2\t\3\2\2\2\2")
+        buf.write(u"\13\3\2\2\2\2\r\3\2\2\2\2\17\3\2\2\2\2\21\3\2\2\2\2\23")
+        buf.write(u"\3\2\2\2\2\25\3\2\2\2\2\27\3\2\2\2\2\31\3\2\2\2\2\33")
+        buf.write(u"\3\2\2\2\2\35\3\2\2\2\2\37\3\2\2\2\2!\3\2\2\2\2#\3\2")
+        buf.write(u"\2\2\2%\3\2\2\2\2\'\3\2\2\2\2)\3\2\2\2\2+\3\2\2\2\2-")
+        buf.write(u"\3\2\2\2\2/\3\2\2\2\2\61\3\2\2\2\2\63\3\2\2\2\2\65\3")
+        buf.write(u"\2\2\2\2\67\3\2\2\2\29\3\2\2\2\2;\3\2\2\2\2=\3\2\2\2")
+        buf.write(u"\2?\3\2\2\2\2A\3\2\2\2\2C\3\2\2\2\2E\3\2\2\2\2G\3\2\2")
+        buf.write(u"\2\2I\3\2\2\2\2K\3\2\2\2\2M\3\2\2\2\2O\3\2\2\2\2Q\3\2")
+        buf.write(u"\2\2\2S\3\2\2\2\2U\3\2\2\2\2W\3\2\2\2\2Y\3\2\2\2\2[\3")
+        buf.write(u"\2\2\2\2]\3\2\2\2\2_\3\2\2\2\2a\3\2\2\2\2c\3\2\2\2\2")
+        buf.write(u"e\3\2\2\2\2g\3\2\2\2\2i\3\2\2\2\2k\3\2\2\2\2m\3\2\2\2")
+        buf.write(u"\3\u00d1\3\2\2\2\3\u00d3\3\2\2\2\3\u00d5\3\2\2\2\3\u00d7")
         buf.write(u"\3\2\2\2\3\u00d9\3\2\2\2\3\u00db\3\2\2\2\3\u00dd\3\2")
         buf.write(u"\2\2\4\u00df\3\2\2\2\4\u00e1\3\2\2\2\4\u00e3\3\2\2\2")
         buf.write(u"\4\u00e5\3\2\2\2\4\u00e7\3\2\2\2\4\u00e9\3\2\2\2\4\u00eb")
@@ -468,6 +469,8 @@ class ANTLRv4Lexer(LexerAdaptor):
 
     decisionsToDFA = [ DFA(ds, i) for i, ds in enumerate(atn.decisionToState) ]
 
+    OFF_CHANNEL = 2
+
     Argument = 1
     Action = 2
     Options = 3
@@ -537,6 +540,8 @@ class ANTLRv4Lexer(LexerAdaptor):
     ACTION_CONTENT = 60
     UNTERMINATED_CHAR_SET = 61
 
+    channelNames = [ u"DEFAULT_TOKEN_CHANNEL", u"HIDDEN", u"OFF_CHANNEL" ]
+
     modeNames = [ u"DEFAULT_MODE", u"Argument", u"Action", u"Options", u"Tokens", 
                   u"Channels", u"LexerCharSet" ]
 
@@ -598,9 +603,9 @@ class ANTLRv4Lexer(LexerAdaptor):
 
     grammarFileName = u"ANTLRv4Lexer.g4"
 
-    def __init__(self, input=None):
-        super(ANTLRv4Lexer, self).__init__(input)
-        self.checkVersion("4.5.3")
+    def __init__(self, input=None, output=sys.stdout):
+        super(ANTLRv4Lexer, self).__init__(input, output=output)
+        self.checkVersion("4.7")
         self._interp = LexerATNSimulator(self, self.atn, self.decisionsToDFA, PredictionContextCache())
         self._actions = None
         self._predicates = None

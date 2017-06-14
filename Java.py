@@ -9,19 +9,27 @@ from llvmlite import ir
 from llvmlite import binding
 from ast import *
 
-def print_indent(st,r):
-   s = ""
-   for i in range(r):
-     s += " "
-   s += str(st)
-   print s
-
         #Antlr node type, 			symbol type for terminals,  ast object, 	types to collect
 ops = { (TerminalNodeImpl, 			JavaParser.Identifier	) : [(Identifier, 	[])],
         (JavaParser.QualifiedNameContext,				) : [(QualifiedName, 	[(Identifier,)])],
         (JavaParser.ImportDeclarationContext,				) : [(ImportDecl, 	[(QualifiedName,),(TerminalNodeImpl,JavaParser.MUL)])],
         (JavaParser.PackageDeclarationContext,				) : [(PackageDecl, 	[(QualifiedName,)])],
-        (JavaParser.ClassDeclarationContext,				) : [(ClassDecl, 	[(Identifier,)])],
+        (JavaParser.ClassDeclarationContext,				) : [(ClassDecl, 	[(Identifier,),(ClassBody,)])],
+        (JavaParser.ClassBodyContext,					) : [(ClassBody, 	[(ClassBodyDecl,)])],
+        (JavaParser.ClassBodyDeclarationContext,			) : [(Block, 		[(Block,)]),
+									     (MemberDecl,	[(MemberDecl,)])],
+        (JavaParser.BlockContext,					) : [(Block, 		[(BlockStatement,)])],
+        (JavaParser.MemberDeclarationContext,				) : [(MemberDecl, 	[(MemberDecl,)])],
+        (JavaParser.MethodDeclarationContext,				) : [(MethodDecl,	[(Block,)])],
+        (JavaParser.ConstructorDeclarationContext,			) : [(ConstructorDecl,	[(Block,)])],
+        (JavaParser.FieldDeclarationContext,				) : [(FieldDecl,	[])],
+        (JavaParser.EnumDeclarationContext,				) : [(EnumDecl,		[])],
+        (JavaParser.InterfaceDeclarationContext,			) : [(InterfaceDecl,	[])],
+        (JavaParser.MethodBodyContext,					) : [(Block,		[(Block,)])],
+        (JavaParser.ConstructorBodyContext,				) : [(Block,		[(Block,)])],
+        (JavaParser.BlockStatementContext,				) : [(BlockStatement,	[(LocalDecl,),(TypeDecl,),(Statement,)])],
+        (JavaParser.StatementContext,					) : [(Block,		[(Block,)])],
+	(JavaParser.LocalVariableDeclarationStatementContext,		) : [(LocalDecl,	[])],
         (JavaParser.TypeDeclarationContext,				) : [(ClassDecl, 	[(ClassDecl,)]),
 									     (EnumDecl, 	[(EnumDecl,)])],
         (JavaParser.CompilationUnitContext,				) : [(CompilationUnit, 	[(PackageDecl,),(ImportDecl,),(TypeDecl,)])]  }
@@ -59,10 +67,13 @@ def explore(ctx,indent):
                   doit = c.getSymbol().type == t[1]
               elif isinstance(c,t[0]):
                   doit = True 
+                  #if type(c) == ClassDecl:
+                     #print "foudn: " + str(t[0]) + ", " + str(type(c)) + ", " + str(dn) + ", " + str(possible)
               if doit:
                  collected.append(c)
-       if len(collected) > 0 or len(ops[dn]) < 2:
-         return possible[0](collected)
+         #print "mk" + str(possible[0])
+         if len(collected) > 0 or len(ops[dn]) < 2:
+           return possible[0](collected)
     #print "no ops" + str(type(ctx))
     return
 """

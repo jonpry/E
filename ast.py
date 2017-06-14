@@ -13,7 +13,7 @@ class QualifiedName(object):
         for d in data:
            st += str(d.data) + "."
         st = st[:-1]
-        print st
+        #print st
         self.data = st
 
     def emit(self, stack):
@@ -53,6 +53,170 @@ class PackageDecl(object):
     def __repr__(self):
         return 'Package "%s"' % (self.name,)
 
+class ClassBody(object):
+    def __init__(self, data):
+        self.data = data
+        #print data
+
+    def emit(self, stack):
+        stack.append(str(self.__repr__()))
+
+    def __repr__(self):
+        return 'Body "%s"' % (self.data,)
+
+class ClassBodyDecl(object):
+    pass
+
+class Block(ClassBodyDecl):
+    def __new__(cls,data):
+       if len(data) > 0:
+         if type(data[0]) == cls:
+            return data[0]
+       return super(Block, cls).__new__(cls)
+
+    def __init__(self, data):
+        if hasattr(self,"data"):
+          return
+        self.data = data
+        #print data
+
+    def emit(self, stack):
+        stack.append(str(self.__repr__()))
+
+    def __repr__(self):
+        return 'Block "%s"' % (self.data,)
+
+class BlockStatement(object):
+    def __init__(self, data):
+        self.data = data
+        #print data
+
+    def emit(self, stack):
+        stack.append(str(self.__repr__()))
+
+    def __repr__(self):
+        return 'BlockStatement "%s"' % (self.data,)
+
+
+class LocalDecl(object):
+    def __init__(self, data):
+        self.data = data
+        #print data
+
+    def emit(self, stack):
+        stack.append(str(self.__repr__()))
+
+    def __repr__(self):
+        return 'LocalDecl "%s"' % (self.data,)
+
+class MemberDecl(ClassBodyDecl):
+    def __new__(cls,data):
+       if len(data) > 0:
+         if isinstance(data[0],cls):
+            return data[0]
+       return super(MemberDecl, cls).__new__(cls)
+
+    def __init__(self, data):
+       if hasattr(self,"data"):
+         return
+       self.data = data
+
+    def emit(self, stack):
+        stack.append(str(self.__repr__()))
+
+    def __repr__(self):
+        return 'MemberDecl "%s"' % (self.data,)
+
+class MethodDecl(MemberDecl):
+    def __new__(cls,data):
+       if len(data) > 0:
+         if type(data[0]) == cls:
+            return data[0]
+       return super(MethodDecl, cls).__new__(cls,data)
+
+    def __init__(self, data):
+       if hasattr(self,"data"):
+         return
+       self.data = data
+
+    def emit(self, stack):
+        stack.append(str(self.__repr__()))
+
+    def __repr__(self):
+        return 'MethodDecl "%s"' % (self.data,)
+
+class FieldDecl(MemberDecl):
+    def __new__(cls,data):
+       if len(data) > 0:
+         if type(data[0]) == cls:
+            return data[0]
+       return super(FieldDecl, cls).__new__(cls,data)
+
+    def __init__(self, data):
+       if hasattr(self,"data"):
+         return
+       self.data = data
+
+    def emit(self, stack):
+        stack.append(str(self.__repr__()))
+
+    def __repr__(self):
+        return 'FieldDecl "%s"' % (self.data,)
+
+class ConstructorDecl(MemberDecl):
+    def __new__(cls,data):
+       if len(data) > 0:
+         if type(data[0]) == cls:
+            return data[0]
+       return super(ConstructorDecl, cls).__new__(cls,data)
+
+    def __init__(self, data):
+       if hasattr(self,"data"):
+         return
+       self.data = data
+
+    def emit(self, stack):
+        stack.append(str(self.__repr__()))
+
+    def __repr__(self):
+        return 'ConstructorDecl "%s"' % (self.data,)
+
+class EnumDecl(MemberDecl):
+    def __new__(cls,data):
+       if len(data) > 0:
+         if type(data[0]) == cls:
+            return data[0]
+       return super(EnumDecl, cls).__new__(cls,data)
+
+    def __init__(self, data):
+       if hasattr(self,"data"):
+         return
+       self.data = data
+
+    def emit(self, stack):
+        stack.append(str(self.__repr__()))
+
+    def __repr__(self):
+        return 'EnumDecl "%s"' % (self.data,)
+
+class InterfaceDecl(MemberDecl):
+    def __new__(cls,data):
+       if len(data) > 0:
+         if type(data[0]) == cls:
+            return data[0]
+       return super(InterfaceDecl, cls).__new__(cls,data)
+
+    def __init__(self, data):
+       if hasattr(self,"data"):
+         return
+       self.data = data
+
+    def emit(self, stack):
+        stack.append(str(self.__repr__()))
+
+    def __repr__(self):
+        return 'InterfaceDecl "%s"' % (self.data,)
+
 class ImportDecl(object):
     def __init__(self, data):
         self.name = data[0]
@@ -67,12 +231,12 @@ class ImportDecl(object):
 class TypeDecl(object):
     pass
 
-class ClassDecl(TypeDecl):
+class ClassDecl(TypeDecl,MemberDecl):
     def __new__(cls,data):
        if len(data) > 0:
          if type(data[0]) == cls:
             return data[0]
-       return super(ClassDecl, cls).__new__(cls)
+       return super(ClassDecl, cls).__new__(cls,data)
 
     def __init__(self, data):
        if hasattr(self,"data"):
@@ -82,7 +246,7 @@ class ClassDecl(TypeDecl):
            self = data[0]
            return
        self.data = data
-       print data
+       #print data[0].data
 
     def emit(self, stack):
         stack.append(str(self.__repr__()))
@@ -95,7 +259,7 @@ class EnumDecl(TypeDecl):
        if len(data) > 0:
          if type(data[0]) == cls:
             return data[0]
-       return super(ClassDecl, cls).__new__(cls)
+       return super(EnumDecl, cls).__new__(cls)
 
     def __init__(self, data):
        if hasattr(self,"data"):
