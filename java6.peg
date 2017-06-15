@@ -128,10 +128,12 @@ ImportDeclaration
     ;
 
 TypeDeclaration
-    = ClassDeclaration
+    = Modifier*
+      ( ClassDeclaration
       / EnumDeclaration
       / InterfaceDeclaration
       / AnnotationTypeDeclaration
+      )
     ;
 
 //-------------------------------------------------------------------------
@@ -139,7 +141,7 @@ TypeDeclaration
 //-------------------------------------------------------------------------
 
 ClassDeclaration
-    = Modifier* CLASS Identifier TypeParameters? (EXTENDS ClassType)? (IMPLEMENTS ClassTypeList)? ClassBody
+    = CLASS Identifier TypeParameters? (EXTENDS ClassType)? (IMPLEMENTS ClassTypeList)? ClassBody
     ;
 
 ClassBody
@@ -147,13 +149,13 @@ ClassBody
     ;
 
 ClassBodyDeclaration
-    =  STATIC? Block                                    // Static or Instance Initializer
-       / MemberDecl                             // ClassMemberDeclaration
+    = STATIC? Block                                    // Static or Instance Initializer
+    / MemberDecl                             // ClassMemberDeclaration
     ;
 
 MemberDecl
     = Modifier* (GenericMethodOrConstructor    // Generic Method or Constructor
-    / MethodDeclarator            // Method
+    / MethodDeclarator             // Method
     / Type VariableDeclarators SEMI                    // Field
     / ConstructorDeclarator             // Constructor
     / InterfaceDeclaration                             // Interface
@@ -162,15 +164,18 @@ MemberDecl
     / AnnotationTypeDeclaration)                        // Annotation
     ;
 
+TypeOrVoid
+    = Type / VOID
+    ;
+
 GenericMethodOrConstructor
     = TypeParameters (MethodDeclarator
     / ConstructorDeclarator)
     ;
 
 MethodDeclarator
-    = (Type / VOID) Identifier FormalParameters (THROWS ClassTypeList)? (MethodBody / SEMI)
+    = TypeOrVoid Identifier FormalParameters (THROWS ClassTypeList)? (MethodBody / SEMI)
     ;
-
 
 ConstructorDeclarator
     = Identifier FormalParameters (THROWS ClassTypeList)? MethodBody
@@ -185,7 +190,7 @@ MethodBody
 //-------------------------------------------------------------------------
 
 InterfaceDeclaration
-    = Modifier* INTERFACE Identifier TypeParameters? (EXTENDS ClassTypeList)? InterfaceBody
+    = INTERFACE Identifier TypeParameters? (EXTENDS ClassTypeList)? InterfaceBody
     ;
 
 InterfaceBody
@@ -193,7 +198,8 @@ InterfaceBody
     ;
 
 InterfaceBodyDeclaration
-    = InterfaceMemberDecl
+    = Modifier* InterfaceMemberDecl
+    / SEMI
     ;
 
 InterfaceMemberDecl
@@ -220,7 +226,7 @@ InterfaceMethodDeclaratorRest
     ;
 
 InterfaceGenericMethodDecl
-    = TypeParameters (Type / VOID) Identifier InterfaceMethodDeclaratorRest
+    = TypeParameters TypeOrVoid Identifier InterfaceMethodDeclaratorRest
     ;
 
 VoidInterfaceMethodDeclaratorRest
@@ -244,7 +250,7 @@ ConstantDeclaratorRest
 //-------------------------------------------------------------------------
 
 EnumDeclaration
-    = Modifier* ENUM Identifier (IMPLEMENTS ClassTypeList)? EnumBody
+    = ENUM Identifier (IMPLEMENTS ClassTypeList)? EnumBody
     ;
 
 EnumBody
@@ -684,11 +690,9 @@ Modifier
       / "static"
       / "abstract"
       / "final"
-      / "native"
       / "synchronized"
       / "transient"
       / "volatile"
-      / "strictfp"
       ) !LetterOrDigit Spacing
     ;
 
@@ -701,7 +705,7 @@ Modifier
 //-------------------------------------------------------------------------
 
 AnnotationTypeDeclaration
-    = Modifier* AT INTERFACE Identifier AnnotationTypeBody
+    = AT INTERFACE Identifier AnnotationTypeBody
     ;
 
 AnnotationTypeBody
@@ -709,7 +713,12 @@ AnnotationTypeBody
     ;
 
 AnnotationTypeElementDeclaration
-    = AnnotationMethodOrConstantRest SEMI
+    = Modifier* AnnotationTypeElementRest
+    / SEMI
+    ;
+
+AnnotationTypeElementRest
+    = Type AnnotationMethodOrConstantRest SEMI
     / ClassDeclaration
     / EnumDeclaration
     / InterfaceDeclaration
@@ -717,16 +726,16 @@ AnnotationTypeElementDeclaration
     ;
 
 AnnotationMethodOrConstantRest
-    =  AnnotationMethodRest
-    /  AnnotationConstantRest
+    = AnnotationMethodRest
+    / AnnotationConstantRest
     ;
 
 AnnotationMethodRest
-    = Type Identifier LPAR RPAR DefaultValue?
+    = Identifier LPAR RPAR DefaultValue?
     ;
 
 AnnotationConstantRest
-    = Type VariableDeclarators
+    = VariableDeclarators
     ;
 
 DefaultValue
