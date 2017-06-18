@@ -255,28 +255,42 @@ def emit_unary_expression(ue,builder):
    assert(False)
 
 def emit_multiplicative_expression(me,builder):
+   a = emit_unary_expression(me["UnaryExpression"][0],builder)
    if "StarDivModUnaryExpression" in me:
-       assert(False)
-   if "UnaryExpression" in me:
-       return emit_unary_expression(me["UnaryExpression"][0],builder)
-   assert(False)
+      for e in me["StarDivModUnaryExpression"]:
+         b = emit_unary_expression(e["UnaryExpression"][0],builder)
+         if "STAR" in e:
+            a = builder.mul(a,b)
+         elif "DIV" in e:
+            a = builder.sdiv(a,b)
+         elif "MOD" in e:
+            a = builder.srem(a,b)
+
+   return a
 
 def emit_additive_expression(ae,builder):
+   a = emit_multiplicative_expression(ae["MultiplicativeExpression"][0],builder)
    if "PlusOrMinusMultiplicativeExpression" in ae:
-      a = emit_multiplicative_expression(ae["MultiplicativeExpression"][0],builder)
-      b = emit_multiplicative_expression(ae["PlusOrMinusMultiplicativeExpression"][0]["MultiplicativeExpression"][0],builder)
-      print (a,b)
-      return builder.add(a,b)
-   if "MultiplicativeExpression" in ae:
-      return emit_multiplicative_expression(ae["MultiplicativeExpression"][0],builder)
-   assert(False)
+      for e in ae["PlusOrMinusMultiplicativeExpression"]:
+         b = emit_multiplicative_expression(e["MultiplicativeExpression"][0],builder)
+         if "PLUS" in e:
+            a = builder.add(a,b)
+         else:
+            a = builder.sub(a,b)
+   return a
 
 def emit_shift_expression(se,builder):
+   a = emit_additive_expression(se["AdditiveExpression"][0],builder)
    if "ShiftAdditiveExpression" in se:
-      assert(False)
-   if "AdditiveExpression" in se:
-      return emit_additive_expression(se["AdditiveExpression"][0],builder)
-   assert(False)
+     for e in se["ShiftAdditiveExpression"]:
+       b = emit_additive_expression(e["AdditiveExpression"][0],builder)
+       if "SR" in e:
+          a = builder.ashr(a,b)
+       elif "BSR" in e:
+          a = builder.lshr(a,b)
+       elif "SL" in e:
+          a = builder.shl(a,b)
+   return a
 
 def emit_relational_expression(re,builder):
    if "RelationalShiftExpression" in re:
@@ -295,25 +309,28 @@ def emit_equality_expression(ee,builder):
    assert(False)
 
 def emit_and_expression(ae,builder):
+   a = emit_equality_expression(ae["EqualityExpression"][0],builder)
    if "AndEqualityExpression" in ae:
-      assert(False)
-   if "EqualityExpression" in ae:
-      return emit_equality_expression(ae["EqualityExpression"][0],builder)
-   assert(False)
+      for e in ae["AndEqualityExpression"]:
+         b = emit_equality_expression(e["EqualityExpression"][0],builder)
+         a = builder.and_(a,b)
+   return a
 
 def emit_exlusive_or_expression(ee,builder):
+   a = emit_and_expression(ee["AndExpression"][0],builder)
    if "HatAndExpression" in ee:
-       assert(False)
-   if "AndExpression" in ee:
-       return emit_and_expression(ee["AndExpression"][0],builder)
-   assert(False)
+     for e in ee["HatAndExpression"]:
+        b = emit_and_expression(e["AndExpression"][0],builder)
+        a = builder.xor(a,b)      
+   return a
 
 def emit_inclusive_or_expression(ie,builder):
+   a = emit_exlusive_or_expression(ie["ExclusiveOrExpression"][0],builder)
    if "OrExclusiveOrExpression" in ie:
-       assert(False)
-   if "ExclusiveOrExpression" in ie:
-       return emit_exlusive_or_expression(ie["ExclusiveOrExpression"][0],builder)
-   assert(False)
+      for e in ie["OrExclusiveOrExpression"]:
+        b = emit_exlusive_or_expression(e["ExclusiveOrExpression"][0],builder)
+        a = builder.or_(a,b)      
+   return a
 
 def emit_conditional_and_expression(ce,builder):
    if "AndAndInclusiveOrExpression" in ce:
