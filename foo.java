@@ -35,10 +35,26 @@ import io.netty.handler.ssl.util.SelfSignedCertificate;
  */
 public final class EchoServer {
 
-    public static void main(String[] args) throws Exception {
+    public static void main() throws Exception {
         int i=0;
-        long v=100l;	
-        i = i - 2 + 3 * 2 / 2 % 3 << 1 >> 1 ^ 4 | 2 & 2;
+        long v=100l;
+        boolean f=false;	
+        f = f || true && true;
+        i = f ? i - 2 + 3 * 2 / 2 % 3 << 1 >> 1 ^ 4 | 2 & 2 + (3 * 2) << 1 >>> 1: 0;
+        i = i + 0x10;
+        f = i > 100;
+        f = i++ != 120;
+        i += 2;
+        i -= 1;
+        i |= 3;
+        i <<= 2;
+        i >>= 1;
+        i >>>= 1;
+        i *= 1;
+        i /= 1;
+        i %= 1000;
+        i &= 0xFFFFF;
+        i ^= 1;
         return i;
     }
 }

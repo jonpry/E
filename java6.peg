@@ -1031,7 +1031,7 @@ DecimalNumeral
     ;
 
 HexNumeral
-    = ("0x" / "0X") HexDigits
+    = r"0[xX][a-fA-F0-9]*"
     ;
 
 BinaryNumeral
@@ -1078,11 +1078,12 @@ Digits
     ;
 
 HexDigits
-    = HexDigit (r"[_]"*HexDigit)*
+    = r"[a-fA-F0-9]*"
     ;
 
+
 HexDigit
-    = r"[a-f]" / r"[A-F]" / r"[0-9]"
+    = r"[a-fA-F0-9]"
     ;
 
 CharLiteral

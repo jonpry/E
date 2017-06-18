@@ -7,7 +7,11 @@ from llvmlite import ir
 from llvmlite import binding
 
 def emit_integer_literal(il,builder): 
-   val = int(il["DecimalNumeral"][0])
+   if "DecimalNumeral" in il:
+      val = int(il["DecimalNumeral"][0])
+   else:
+      val = int(il["HexNumeral"][0],16)
+
    sz = 8
    if val > 255:
      sz = 16
@@ -33,23 +37,42 @@ def emit_integer_literal(il,builder):
 def emit_literal(l,builder):
    if "IntegerLiteral" in l:
        return emit_integer_literal(l["IntegerLiteral"][0],builder)
+   if "false" in l:
+       return ir.Constant(ir.IntType(1), 0)
+   if "true" in l:
+       return ir.Constant(ir.IntType(1), 1)
    assert(False)
 
 def emit_primary(p,builder):
    global context
    if "Literal" in p:
-      print json.dumps(p)
       return emit_literal(p["Literal"][0],builder)
    if "QualifiedIdentifier" in p:
       var = p["QualifiedIdentifier"][0]
       return builder.load(context[var])
-
+   if "ParExpression" in p:
+      v= emit_expression(p["ParExpression"][0]["Expression"][0],builder)
+      return v
    assert(False)
 
 def emit_unary_expression(ue,builder):
+   global context
    if "Primary" in ue:
-      return emit_primary(ue["Primary"][0],builder)
-   assert(False)
+      a = emit_primary(ue["Primary"][0],builder)
+   if "PostfixOp" in ue:
+      for e in ue["PostfixOp"]:
+         for k,v in context.items():
+           if v == a.operands[0]:
+              t = builder.load(v)
+              if "INC" in e:
+                 s = builder.add(t,ir.Constant(t.type,1))
+              else:
+                 s = builder.sub(t,ir.Constant(t.type,1))
+              builder.store(s,v)
+              found = True
+              break
+         assert(found)
+   return a
 
 def emit_multiplicative_expression(me,builder):
    a = emit_unary_expression(me["UnaryExpression"][0],builder)
@@ -93,21 +116,39 @@ def emit_shift_expression(se,builder):
    return a
 
 def emit_relational_expression(re,builder):
-   if "RelationalShiftExpression" in re:
-      assert(False)
    if "ReferenceType" in re:
       assert(False)
+
    if "ShiftExpression" in re:
-      return emit_shift_expression(re["ShiftExpression"][0],builder)
-   assert(False)
+      a = emit_shift_expression(re["ShiftExpression"][0],builder)
+
+   if "RelationalShiftExpression" in re:
+      for e in re["RelationalShiftExpression"]:
+         b = emit_shift_expression(e["ShiftExpression"][0],builder)
+         if "LT" in e:
+           op = "<"
+         if "LE" in e:
+           ope = "<="
+         if "GT" in e:
+           op = ">"
+         if "GE" in e:
+           op = ">="	
+         a = builder.icmp_signed(op,a,b)
+   return a
 
 def emit_equality_expression(ee,builder):
-   if "EqualityRelationalExpression" in ee:
-       assert(False)
    if "RelationalExpression" in ee:
-       return emit_relational_expression(ee["RelationalExpression"][0],builder)
-   assert(False)
+       a = emit_relational_expression(ee["RelationalExpression"][0],builder)
 
+   if "EqualityRelationalExpression" in ee:
+      for e in ee["EqualityRelationalExpression"]:
+         b = emit_relational_expression(e["RelationalExpression"][0],builder)
+         if "EQUAL" in e:
+           op = "=="
+         if "NOTEQUAL" in e:
+           op = "!="
+         a = builder.icmp_signed(op,a,b)
+   return a
 def emit_and_expression(ae,builder):
    a = emit_equality_expression(ae["EqualityExpression"][0],builder)
    if "AndEqualityExpression" in ae:
@@ -136,27 +177,35 @@ def emit_inclusive_or_expression(ie,builder):
    return a
 
 def emit_conditional_and_expression(ce,builder):
-   if "AndAndInclusiveOrExpression" in ce:
-       assert(False)
    if "InclusiveOrExpression" in ce:
-       return emit_inclusive_or_expression(ce["InclusiveOrExpression"][0],builder)
-   assert(False)
+      a = emit_inclusive_or_expression(ce["InclusiveOrExpression"][0],builder)
+   if "AndAndInclusiveOrExpression" in ce:
+      for e in ce["AndAndInclusiveOrExpression"]:
+         b = emit_inclusive_or_expression(e["InclusiveOrExpression"][0],builder)
+         a = builder.and_(a,b)
+   return a
 
 
 def emit_condition_or_expression(ce, builder):
-   if "OrOrConditionalAndExpression" in ce:
-      assert(False)
    if "ConditionalAndExpression" in ce:
-      return emit_conditional_and_expression(ce["ConditionalAndExpression"][0],builder)
-   assert(False)
+      a = emit_conditional_and_expression(ce["ConditionalAndExpression"][0],builder)
+   if "OrOrConditionalAndExpression" in ce:
+      for e in ce["OrOrConditionalAndExpression"]:
+         b = emit_conditional_and_expression(e["ConditionalAndExpression"][0],builder)
+         a = builder.or_(a,b)
+   return a
 
 
 def emit_conditional_expression(ce,builder):
-   if "QueryConditionalOrExpression" in ce:
-      assert(False)
    if "ConditionalOrExpression" in ce:
-      return emit_condition_or_expression(ce["ConditionalOrExpression"][0],builder)
-   assert(False)
+      a = emit_condition_or_expression(ce["ConditionalOrExpression"][0],builder)
+   if "QueryConditionalOrExpression" in ce:
+      for e in ce["QueryConditionalOrExpression"]:
+         ex = emit_expression(e["Expression"][0],builder)
+         ne = emit_conditional_expression(e,builder)
+         ex,ne = auto_cast(ex,ne,builder)
+         a = builder.select(a,ex,ne)
+   return a
 
 def emit_expression(se, builder):
    global context
@@ -164,8 +213,42 @@ def emit_expression(se, builder):
    if "ConditionalExpression" in se:
       v = emit_conditional_expression(se["ConditionalExpression"][0],builder)
    if "LeftHandSide" in se:
-      var = se["LeftHandSide"][0]["QualifiedIdentifier"][0]
-      store(v,context[var],builder)
+      for i in range(len(se["LeftHandSide"])):
+         var = se["LeftHandSide"][i]["QualifiedIdentifier"][0]
+         op = se["AssignmentOperator"][i]
+         if "EQU" in op:
+            store(v,context[var],builder)
+            continue
+         cv = builder.load(context[var])
+         v,cv = auto_cast(v,cv,builder)
+         if "PLUSEQU" in op:
+            v = builder.add(cv,v)    
+         elif "MINUSEQU" in op:
+            v = builder.sub(cv,v)
+         elif "STAREQU" in op:
+            v = builder.mul(cv,v)
+         elif "DIVEQU" in op:
+            v = builder.sdiv(cv,v)
+         elif "MODEQU" in op:
+            v = builder.srem(cv,v)
+         elif "OREQU" in op:
+            v = builder.or_(cv,v)
+         elif "ANDEQU" in op:
+            v = builder.and_(cv,v)
+         elif "SLEQU" in op:
+            v = builder.shl(cv,v)
+         elif "SREQU" in op:
+            v = builder.ashr(cv,v)   
+         elif "BSREQU" in op:
+            v = builder.lshr(cv,v)    
+         elif "HATEQU" in op:
+            v = builder.xor(cv,v)    
+         else:
+            assert(False)
+
+         store(v,context[var],builder)
+
+
    assert v!=None
    return v
 
@@ -184,6 +267,10 @@ context = {}
 def auto_cast(a,b,builder,i=None):
    at = int(str(a.type).split("i")[1])
    bt = int(str(b.type).split("i")[1])
+
+   if at == 1 or bt == 1:
+      assert(at == bt)
+      return (a,b) #no auto cast to integer on boolean
 
    if at < bt and (i != None or i < bt):
      a = builder.sext(a,ir.IntType(bt))
@@ -233,6 +320,8 @@ def get_type(t):
      return ir.FloatType(32)
    if "double" in t["BasicType"][0]:
      return ir.FloatType(64)
+   if "boolean" in t["BasicType"][0]:
+     return ir.IntType(1)
 
 
 def emit_local_variable_decl(lv,builder):

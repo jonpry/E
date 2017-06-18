@@ -274,7 +274,7 @@ def main():
         execute_rule(parse_tree,rule)
 
     #pretty_print(parse_tree)
-    json
+    
     '''Second pass, lowering'''
 
     '''Third pass, emit'''
