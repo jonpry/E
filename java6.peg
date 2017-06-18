@@ -278,7 +278,11 @@ LocalVariableDeclarationStatement
     ;
 
 VariableDeclarators
-    = VariableDeclarator (COMMA VariableDeclarator)*
+    = VariableDeclarator CommaVariableDeclarator*
+    ;
+
+CommaVariableDeclarator
+    = COMMA VariableDeclarator
     ;
 
 VariableDeclarator
@@ -294,16 +298,24 @@ FormalParameters
     ;
 
 FormalParameter
-    = (FINAL / Annotation)* Type VariableDeclaratorId
+    = FinalOrAnnotation* Type VariableDeclaratorId
     ;
 
 LastFormalParameter
-    = (FINAL / Annotation)* Type ELLIPSIS VariableDeclaratorId
+    = FinalOrAnnotation* Type ELLIPSIS VariableDeclaratorId
+    ;
+
+FinalOrAnnotation
+    = FINAL / Annotation
     ;
 
 FormalParameterList
-    = FormalParameter (COMMA FormalParameter)* (COMMA LastFormalParameter)?
+    = FormalParameter CommaFormalParamater* (COMMA LastFormalParameter)?
     / LastFormalParameter
+    ;
+
+CommaFormalParamater
+    = COMMA FormalParameter
     ;
 
 VariableDeclaratorId
@@ -353,11 +365,15 @@ Statement
     ;
 
 Resource
-    = (FINAL / Annotation)* Type VariableDeclaratorId EQU Expression
+    = FinalOrAnnotation* Type VariableDeclaratorId EQU Expression
     ;
 
 Catch
-    = CATCH LPAR (FINAL / Annotation)* Type (OR Type)* VariableDeclaratorId RPAR Block
+    = CATCH LPAR FinalOrAnnotation* Type OrType* VariableDeclaratorId RPAR Block
+    ;
+
+OrType
+    = OR Type
     ;
 
 Finally
@@ -379,12 +395,16 @@ SwitchLabel
     ;
 
 ForInit
-    = (FINAL / Annotation)* Type VariableDeclarators
-    / StatementExpression (COMMA StatementExpression)*
+    = FinalOrAnnotation* Type VariableDeclarators
+    / StatementExpression CommaStatementExpression*
+    ;
+
+CommaStatementExpression
+    = COMMA StatementExpression
     ;
 
 ForUpdate
-    = StatementExpression (COMMA StatementExpression)*
+    = StatementExpression CommaStatementExpression*
     ;
 
 EnumConstantName
@@ -407,8 +427,12 @@ ConstantExpression
     = Expression
     ;
 
+LeftHandSide
+    = (THIS DOT)? QualifiedIdentifier
+    ;
+
 Expression
-    = ConditionalExpression (AssignmentOperator ConditionalExpression)*
+    = (LeftHandSide AssignmentOperator)* ConditionalExpression
     ;
 
     // This definition is part of the modification in JLS Chapter 18
@@ -435,47 +459,91 @@ AssignmentOperator
     ;
 
 ConditionalExpression
-    = ConditionalOrExpression (QUERY Expression COLON ConditionalOrExpression)*
+    = ConditionalOrExpression QueryConditionalOrExpression*
+    ;
+
+QueryConditionalOrExpression
+    = QUERY Expression COLON ConditionalOrExpression
     ;
 
 ConditionalOrExpression
-    = ConditionalAndExpression (OROR ConditionalAndExpression)*
+    = ConditionalAndExpression OrOrConditionalAndExpression*
+    ;
+
+OrOrConditionalAndExpression
+    = OROR ConditionalAndExpression
     ;
 
 ConditionalAndExpression
-    = InclusiveOrExpression (ANDAND InclusiveOrExpression)*
+    = InclusiveOrExpression AndAndInclusiveOrExpression*
+    ;
+
+AndAndInclusiveOrExpression
+    = ANDAND InclusiveOrExpression
     ;
 
 InclusiveOrExpression
-    = ExclusiveOrExpression (OR ExclusiveOrExpression)*
+    = ExclusiveOrExpression OrExclusiveOrExpression*
+    ;
+
+OrExclusiveOrExpression
+    = OR ExclusiveOrExpression
     ;
 
 ExclusiveOrExpression
-    = AndExpression (HAT AndExpression)*
+    = AndExpression HatAndExpression*
+    ;
+
+HatAndExpression
+    = HAT AndExpression   
     ;
 
 AndExpression
-    = EqualityExpression (AND EqualityExpression)*
+    = EqualityExpression AndEqualityExpression*
+    ;
+
+AndEqualityExpression
+    = AND EqualityExpression
     ;
 
 EqualityExpression
-    = RelationalExpression ((EQUAL /  NOTEQUAL) RelationalExpression)*
+    = RelationalExpression EqualityRelationalExpression*
+    ;
+
+EqualityRelationalExpression
+    = (EQUAL /  NOTEQUAL) RelationalExpression
     ;
 
 RelationalExpression
-    = ShiftExpression ((LE / GE / LT / GT) ShiftExpression / INSTANCEOF ReferenceType)*
+    = ShiftExpression (RelationalShiftExpression / INSTANCEOF ReferenceType)*
+    ;
+
+RelationalShiftExpression
+    = (LE / GE / LT / GT) ShiftExpression
     ;
 
 ShiftExpression
-    = AdditiveExpression ((SL / SR / BSR) AdditiveExpression)*
+    = AdditiveExpression ShiftAdditiveExpression*
+    ;
+
+ShiftAdditiveExpression
+    = (SL / SR / BSR) AdditiveExpression
     ;
 
 AdditiveExpression
-    = MultiplicativeExpression ((PLUS / MINUS) MultiplicativeExpression)*
+    = MultiplicativeExpression (PlusOrMinusMultiplicativeExpression)*
+    ;
+
+PlusOrMinusMultiplicativeExpression
+    = (PLUS / MINUS) MultiplicativeExpression
     ;
 
 MultiplicativeExpression
-    = UnaryExpression ((STAR / DIV / MOD) UnaryExpression)*
+    = UnaryExpression (StarDivModUnaryExpression)*
+    ;
+
+StarDivModUnaryExpression
+    = (STAR / DIV / MOD) UnaryExpression
     ;
 
 UnaryExpression
@@ -580,7 +648,11 @@ BasicType
     ;
 
 Arguments
-    = LPAR (Expression (COMMA Expression)*)? RPAR
+    = LPAR (Expression CommaExpression*)? RPAR
+    ;
+
+CommaExpression
+    = COMMA Expression
     ;
 
 Creator
@@ -629,7 +701,11 @@ ParExpression
     ;
 
 QualifiedIdentifier
-    = Identifier (DOT Identifier)*
+    = Identifier DotIdentifier*
+    ;
+
+DotIdentifier
+    = DOT Identifier
     ;
 
 Dim
