@@ -1018,12 +1018,16 @@ IntegerLiteral
       / BinaryNumeral
       / OctalNumeral            // May be a prefix of HexNumeral or BinaryNumeral
       / DecimalNumeral          // May be a prefix of OctalNumeral
-      ) r"[lL]"?
+      ) SizeSuffix?
+    ;
+
+SizeSuffix
+    = r"[lLsSbBiI]"
     ;
 
 DecimalNumeral
     = "0"
-    / r"[1-9]"(r"[_]"*r"[0-9]")*
+    / r"[1-9][0-9]*"
     ;
 
 HexNumeral

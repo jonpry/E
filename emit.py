@@ -8,7 +8,27 @@ from llvmlite import binding
 
 def emit_integer_literal(il,builder): 
    val = int(il["DecimalNumeral"][0])
-   return ir.Constant(ir.IntType(32), val)
+   sz = 8
+   if val > 255:
+     sz = 16
+   if val >= (1<<16):
+     sz = 32
+   if val >= (1<<32):
+     sz = 64
+ 
+   if "SizeSuffix" in il:
+     suf = il["SizeSuffix"][0].lower()
+     if suf == "l":
+        nsz = 64
+     elif suf == "i":
+        nsz = 32
+     elif suf == "s":
+        nsz = 16
+     elif suf == "b":
+        nsz = 8
+     assert(nsz >= sz)
+     sz = nsz
+   return ir.Constant(ir.IntType(sz), val)
 
 def emit_literal(l,builder):
    if "IntegerLiteral" in l:
@@ -18,6 +38,7 @@ def emit_literal(l,builder):
 def emit_primary(p,builder):
    global context
    if "Literal" in p:
+      print json.dumps(p)
       return emit_literal(p["Literal"][0],builder)
    if "QualifiedIdentifier" in p:
       var = p["QualifiedIdentifier"][0]
@@ -34,7 +55,8 @@ def emit_multiplicative_expression(me,builder):
    a = emit_unary_expression(me["UnaryExpression"][0],builder)
    if "StarDivModUnaryExpression" in me:
       for e in me["StarDivModUnaryExpression"]:
-         b = emit_unary_expression(e["UnaryExpression"][0],builder)
+         b = emit_unary_expression(e["UnaryExpression"][0],builder) 
+         a,b = auto_cast(a,b,builder,i=32)
          if "STAR" in e:
             a = builder.mul(a,b)
          elif "DIV" in e:
@@ -49,6 +71,7 @@ def emit_additive_expression(ae,builder):
    if "PlusOrMinusMultiplicativeExpression" in ae:
       for e in ae["PlusOrMinusMultiplicativeExpression"]:
          b = emit_multiplicative_expression(e["MultiplicativeExpression"][0],builder)
+         a,b = auto_cast(a,b,builder,i=32)
          if "PLUS" in e:
             a = builder.add(a,b)
          else:
@@ -60,6 +83,7 @@ def emit_shift_expression(se,builder):
    if "ShiftAdditiveExpression" in se:
      for e in se["ShiftAdditiveExpression"]:
        b = emit_additive_expression(e["AdditiveExpression"][0],builder)
+       a,b = auto_cast(a,b,builder,i=32)
        if "SR" in e:
           a = builder.ashr(a,b)
        elif "BSR" in e:
@@ -89,6 +113,7 @@ def emit_and_expression(ae,builder):
    if "AndEqualityExpression" in ae:
       for e in ae["AndEqualityExpression"]:
          b = emit_equality_expression(e["EqualityExpression"][0],builder)
+         a,b = auto_cast(a,b,builder,i=32)
          a = builder.and_(a,b)
    return a
 
@@ -97,6 +122,7 @@ def emit_exlusive_or_expression(ee,builder):
    if "HatAndExpression" in ee:
      for e in ee["HatAndExpression"]:
         b = emit_and_expression(e["AndExpression"][0],builder)
+        a,b = auto_cast(a,b,builder,i=32)
         a = builder.xor(a,b)      
    return a
 
@@ -105,6 +131,7 @@ def emit_inclusive_or_expression(ie,builder):
    if "OrExclusiveOrExpression" in ie:
       for e in ie["OrExclusiveOrExpression"]:
         b = emit_exlusive_or_expression(e["ExclusiveOrExpression"][0],builder)
+        a,b = auto_cast(a,b,builder,i=32)
         a = builder.or_(a,b)      
    return a
 
@@ -138,7 +165,7 @@ def emit_expression(se, builder):
       v = emit_conditional_expression(se["ConditionalExpression"][0],builder)
    if "LeftHandSide" in se:
       var = se["LeftHandSide"][0]["QualifiedIdentifier"][0]
-      builder.store(v,context[var])
+      store(v,context[var],builder)
    assert v!=None
    return v
 
@@ -154,16 +181,63 @@ def emit_statement(s,builder):
 
 context = {}
 
-def emit_local_decl(lv,builder):
+def auto_cast(a,b,builder,i=None):
+   at = int(str(a.type).split("i")[1])
+   bt = int(str(b.type).split("i")[1])
+
+   if at < bt and (i != None or i < bt):
+     a = builder.sext(a,ir.IntType(bt))
+   elif at < i  and i != None:
+     a = builder.sext(a,ir.IntType(i))
+
+   if bt < at and (i != None or i < at):
+     b = builder.sext(b,ir.IntType(at))
+   elif bt < i  and i != None:
+     b = builder.sext(b,ir.IntType(i))
+
+   return (a,b)
+
+
+def store(val,var,builder):
+   valt = int(str(val.type).split("i")[1])
+   vart = int(str(var.type).split("*")[0].split("i")[1])
+
+   assert(valt <= vart)
+
+   t = ir.IntType(vart)
+
+   v = builder.sext(val,t)
+   builder.store(v,var)
+
+
+def emit_local_decl(t,lv,builder):
    global context
-   context[lv["Identifier"][0]] = builder.alloca(ir.IntType(32))
+   context[lv["Identifier"][0]] = builder.alloca(t)
 
    if "VariableInitializer" in lv:
-      builder.store(emit_expression(lv["VariableInitializer"][0]["Expression"][0],builder),context[lv["Identifier"][0]])
+      val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],builder)
+      var = context[lv["Identifier"][0]]
+      store(val,var,builder)
+
+def get_type(t):
+   assert("BasicType" in t)
+   if "int" in t["BasicType"][0]:
+     return ir.IntType(32)
+   if "long" in t["BasicType"][0]:
+     return ir.IntType(64)
+   if "short" in t["BasicType"][0]:
+     return ir.IntType(16)
+   if "byte" in t["BasicType"][0]:
+     return ir.IntType(8)
+   if "float" in t["BasicType"][0]:
+     return ir.FloatType(32)
+   if "double" in t["BasicType"][0]:
+     return ir.FloatType(64)
 
 
 def emit_local_variable_decl(lv,builder):
-   return emit_local_decl(lv["VariableDeclarators"][0]["VariableDeclarator"][0],builder)
+   t = get_type(lv["Type"][0])
+   return emit_local_decl(t,lv["VariableDeclarators"][0]["VariableDeclarator"][0],builder)
 
 def emit_blockstatement(bs,builder):
    if "Statement" in bs:

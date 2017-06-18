@@ -37,6 +37,7 @@ public final class EchoServer {
 
     public static void main(String[] args) throws Exception {
         int i=0;
+        long v=100l;	
         i = i - 2 + 3 * 2 / 2 % 3 << 1 >> 1 ^ 4 | 2 & 2;
         return i;
     }
