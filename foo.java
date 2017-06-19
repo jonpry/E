@@ -35,7 +35,12 @@ import io.netty.handler.ssl.util.SelfSignedCertificate;
  */
 public final class EchoServer {
 
-    public static void main() throws Exception {
+    public static int func(int j) throws Exception {
+        int i=100+j;
+        return i;
+    }
+
+    public static int main() throws Exception {
         int i=0;
         long v=100l;
         boolean f=false;	
@@ -44,7 +49,7 @@ public final class EchoServer {
         i = i + 0x10;
         f = i > 100;
         f = i++ != 120;
-        i += 2;
+        i += func(2);
         i -= 1;
         i |= 3;
         i <<= 2;

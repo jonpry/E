@@ -43,13 +43,34 @@ def emit_literal(l,builder):
        return ir.Constant(ir.IntType(1), 1)
    assert(False)
 
+def is_pointer(var):
+   return len(str(var.type).split("*")) > 1
+
 def emit_primary(p,builder):
    global context
+   global funcs
    if "Literal" in p:
       return emit_literal(p["Literal"][0],builder)
    if "QualifiedIdentifier" in p:
       var = p["QualifiedIdentifier"][0]
-      return builder.load(context[var])
+      if "IdentifierSuffix" in p:
+         suf = p["IdentifierSuffix"][0]
+         if "Arguments" in suf:
+           a = suf["Arguments"][0]
+           args = []
+           func = funcs[var]["func"]
+           if "Expression" in a:
+              for i in range(len(a["Expression"])):
+                 e = a["Expression"][i]
+                 t = func.args[i]
+                 e = emit_expression(e,builder)
+                 e,foo = auto_cast(e,t,builder)
+                 args.append(e)
+           return builder.call(func,args)
+      else:
+         if is_pointer(context[var]):
+            return builder.load(context[var])
+         return context[var]
    if "ParExpression" in p:
       v= emit_expression(p["ParExpression"][0]["Expression"][0],builder)
       return v
@@ -335,11 +356,36 @@ def emit_blockstatement(bs,builder):
      return emit_local_variable_decl(bs["LocalVariableDeclarationStatement"][0],builder)
    assert(False)
 
-
-def emit_method(method,module):
+funcs = {}
+def emit_method(method,module,decl_only):
+   global funcs
+   global context
    name = method["Identifier"][0]
-   typo = ir.FunctionType(ir.IntType(32), (), False)
-   func = ir.Function(module, typo, name)
+
+   if decl_only:
+      fps = method["FormalParameters"][0]
+      types = []
+      names = []
+      if "FormalParameterList" in fps:
+        for fp in fps["FormalParameterList"]:
+           fp = fp["FormalParameter"][0]
+           t = get_type(fp["Type"][0])
+           types.append(t)
+           names.append(fp["VariableDeclaratorId"][0]["Identifier"][0])
+
+      typo = ir.FunctionType(ir.IntType(32), types, False)
+      func = ir.Function(module, typo, name)
+      func.attributes.add("noinline")
+      funcs[name] = {"func" : func, "names" : names}
+      return
+
+   func = funcs[name]["func"]
+   context = {}
+   for i in range(len(func.args)):
+     arg = func.args[i]
+     name = funcs[name]["names"][i]
+     context[name] = arg
+
    block = func.append_basic_block('entry')
    builder = ir.IRBuilder(block)
 
@@ -348,23 +394,27 @@ def emit_method(method,module):
       emit_blockstatement(bs,builder)
 
 
-def emit_member(member,module):
+def emit_member(member,module,decl_only):
    if "MethodDeclarator" in member:
-      emit_method(member["MethodDeclarator"][0],module)
+      emit_method(member["MethodDeclarator"][0],module,decl_only)
 
-def emit_class(cls,module):
+def emit_class(cls,module,decl_only):
    body = cls["ClassBody"][0]
    decls = body["ClassBodyDeclaration"]
    for decl in decls:
-      emit_member(decl["MemberDecl"][0],module)
+      emit_member(decl["MemberDecl"][0],module,decl_only)
 
-def emit_module(unit):
-   module = ir.Module(name="main")
-   module.triple = binding.get_default_triple()
+module = None
+def emit_module(unit,decl_only):
+   global module
+   if module == None:
+      module = ir.Module(name="main")
+      module.triple = binding.get_default_triple()
 
    for t in unit["TypeDeclaration"]:
       assert "ClassDeclaration" in t
-      emit_class(t["ClassDeclaration"][0],module)
+      emit_class(t["ClassDeclaration"][0],module,decl_only)
 
-   print str(module)
+   if not decl_only:
+      print str(module)
 

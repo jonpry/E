@@ -648,11 +648,7 @@ BasicType
     ;
 
 Arguments
-    = LPAR (Expression CommaExpression*)? RPAR
-    ;
-
-CommaExpression
-    = COMMA Expression
+    = LPAR (Expression (COMMA Expression)*)? RPAR
     ;
 
 Creator
