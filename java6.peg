@@ -636,11 +636,14 @@ SuperSuffix
 
 
 BasicType
-    = ( "byte"
-      / "short"
+    = ( "short"
+      / "ushort"
       / "char"
+      / "uchar"
       / "int"
+      / "uint"
       / "long"
+      / "ulong"
       / "float"
       / "double"
       / "boolean"

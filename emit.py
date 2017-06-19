@@ -5,6 +5,7 @@ import json
 from collections import OrderedDict
 from llvmlite import ir
 from llvmlite import binding
+from signed import SIntType, Builder
 
 def emit_integer_literal(il,builder): 
    if "DecimalNumeral" in il:
@@ -12,6 +13,8 @@ def emit_integer_literal(il,builder):
    else:
       val = int(il["HexNumeral"][0],16)
 
+
+   #TODO: try to infer signed constants
    sz = 8
    if val > 255:
      sz = 16
@@ -64,7 +67,7 @@ def emit_primary(p,builder):
                  e = a["Expression"][i]
                  t = func.args[i]
                  e = emit_expression(e,builder)
-                 e,foo = auto_cast(e,t,builder)
+                 e,foo,signed = auto_cast(e,t,builder,single=True,force_sign=str(t)[0])
                  args.append(e)
            return builder.call(func,args)
       else:
@@ -100,13 +103,19 @@ def emit_multiplicative_expression(me,builder):
    if "StarDivModUnaryExpression" in me:
       for e in me["StarDivModUnaryExpression"]:
          b = emit_unary_expression(e["UnaryExpression"][0],builder) 
-         a,b = auto_cast(a,b,builder,i=32)
+         a,b,signed = auto_cast(a,b,builder,i=32)
          if "STAR" in e:
             a = builder.mul(a,b)
          elif "DIV" in e:
-            a = builder.sdiv(a,b)
+            if signed:
+               a = builder.sdiv(a,b)
+            else:
+               a = builder.udiv(a,b)
          elif "MOD" in e:
-            a = builder.srem(a,b)
+            if signed:
+               a = builder.srem(a,b)
+            else:
+               a = builder.urem(a,b)
 
    return a
 
@@ -115,7 +124,7 @@ def emit_additive_expression(ae,builder):
    if "PlusOrMinusMultiplicativeExpression" in ae:
       for e in ae["PlusOrMinusMultiplicativeExpression"]:
          b = emit_multiplicative_expression(e["MultiplicativeExpression"][0],builder)
-         a,b = auto_cast(a,b,builder,i=32)
+         a,b,signed = auto_cast(a,b,builder,i=32)
          if "PLUS" in e:
             a = builder.add(a,b)
          else:
@@ -127,9 +136,12 @@ def emit_shift_expression(se,builder):
    if "ShiftAdditiveExpression" in se:
      for e in se["ShiftAdditiveExpression"]:
        b = emit_additive_expression(e["AdditiveExpression"][0],builder)
-       a,b = auto_cast(a,b,builder,i=32)
+       a,b,signed = auto_cast(a,b,builder,i=32)
        if "SR" in e:
-          a = builder.ashr(a,b)
+          if signed:
+             a = builder.ashr(a,b)
+          else:
+             a = builder.lshr(a,b)
        elif "BSR" in e:
           a = builder.lshr(a,b)
        elif "SL" in e:
@@ -175,7 +187,7 @@ def emit_and_expression(ae,builder):
    if "AndEqualityExpression" in ae:
       for e in ae["AndEqualityExpression"]:
          b = emit_equality_expression(e["EqualityExpression"][0],builder)
-         a,b = auto_cast(a,b,builder,i=32)
+         a,b,signed = auto_cast(a,b,builder,i=32)
          a = builder.and_(a,b)
    return a
 
@@ -184,7 +196,7 @@ def emit_exlusive_or_expression(ee,builder):
    if "HatAndExpression" in ee:
      for e in ee["HatAndExpression"]:
         b = emit_and_expression(e["AndExpression"][0],builder)
-        a,b = auto_cast(a,b,builder,i=32)
+        a,b,signed = auto_cast(a,b,builder,i=32)
         a = builder.xor(a,b)      
    return a
 
@@ -193,7 +205,7 @@ def emit_inclusive_or_expression(ie,builder):
    if "OrExclusiveOrExpression" in ie:
       for e in ie["OrExclusiveOrExpression"]:
         b = emit_exlusive_or_expression(e["ExclusiveOrExpression"][0],builder)
-        a,b = auto_cast(a,b,builder,i=32)
+        a,b,signed = auto_cast(a,b,builder,i=32)
         a = builder.or_(a,b)      
    return a
 
@@ -224,7 +236,7 @@ def emit_conditional_expression(ce,builder):
       for e in ce["QueryConditionalOrExpression"]:
          ex = emit_expression(e["Expression"][0],builder)
          ne = emit_conditional_expression(e,builder)
-         ex,ne = auto_cast(ex,ne,builder)
+         ex,ne,signed = auto_cast(ex,ne,builder)
          a = builder.select(a,ex,ne)
    return a
 
@@ -241,7 +253,7 @@ def emit_expression(se, builder):
             store(v,context[var],builder)
             continue
          cv = builder.load(context[var])
-         v,cv = auto_cast(v,cv,builder)
+         v,cv,signed = auto_cast(v,cv,builder)
          if "PLUSEQU" in op:
             v = builder.add(cv,v)    
          elif "MINUSEQU" in op:
@@ -259,7 +271,10 @@ def emit_expression(se, builder):
          elif "SLEQU" in op:
             v = builder.shl(cv,v)
          elif "SREQU" in op:
-            v = builder.ashr(cv,v)   
+            if signed:
+               v = builder.ashr(cv,v)   
+            else:
+               v = builder.lshr(cv,v)    
          elif "BSREQU" in op:
             v = builder.lshr(cv,v)    
          elif "HATEQU" in op:
@@ -285,37 +300,90 @@ def emit_statement(s,builder):
 
 context = {}
 
-def auto_cast(a,b,builder,i=None):
-   at = int(str(a.type).split("i")[1])
-   bt = int(str(b.type).split("i")[1])
+def auto_cast(a,b,builder,i=None,single=False,force_sign=None):
+   asigned = False
+   if "i" in str(a.type):
+     at = int(str(a.type).split("i")[1])
+   else:
+     at = int(str(a.type).split("s")[1])
+     asigned = True
+
+   bsigned = False
+   if "i" in str(b.type):
+     bt = int(str(b.type).split("i")[1])
+   else:
+     bt = int(str(b.type).split("s")[1])
+     bsigned = True
+   
+   if force_sign=="i" or (asigned and not bsigned):
+     a = builder.tounsigned(a)
+
+   if single==False and (force_sign=="i" or (bsigned and not asigned)):
+     b = builder.tounsigned(b)
+
+   if force_sign=="s":
+     a = builder.tosigned(a)
+     if single==False:
+        b = builder.tosigned(b)
 
    if at == 1 or bt == 1:
       assert(at == bt)
-      return (a,b) #no auto cast to integer on boolean
+      return (a,b,False) #no auto cast to integer on boolean
+
+   signed = (asigned and bsigned and force_sign != "i") or force_sign == "s"
+   if signed:
+      tfunc = SIntType
+      efunc = builder.sext
+   else:
+      tfunc = ir.IntType
+      efunc = builder.zext
 
    if at < bt and (i != None or i < bt):
-     a = builder.sext(a,ir.IntType(bt))
+     a = efunc(a,tfunc(bt))
    elif at < i  and i != None:
-     a = builder.sext(a,ir.IntType(i))
+     a = efunc(a,tfunc(i))
+   
+   if single==False:
+     if bt < at and (i != None or i < at):
+       b = efunc(b,tfunc(at))
+     elif bt < i  and i != None:
+       b = efunc(b,tfunc(i))
 
-   if bt < at and (i != None or i < at):
-     b = builder.sext(b,ir.IntType(at))
-   elif bt < i  and i != None:
-     b = builder.sext(b,ir.IntType(i))
-
-   return (a,b)
+   return (a,b,signed)
 
 
 def store(val,var,builder):
-   valt = int(str(val.type).split("i")[1])
-   vart = int(str(var.type).split("*")[0].split("i")[1])
+   valsigned = False
+   if "i" in str(val.type):
+      valt = int(str(val.type).split("i")[1])
+   else:
+      valt = int(str(val.type).split("s")[1])
+      valsigned = True
+
+   varsigned = False
+   if "i" in str(var.type):
+      vart = int(str(var.type).split("*")[0].split("i")[1])
+   else:
+      vart = int(str(var.type).split("*")[0].split("s")[1])
+      varsigned = True
 
    assert(valt <= vart)
 
-   t = ir.IntType(vart)
+   if varsigned and not valsigned:
+      val = builder.tosigned(val)
 
-   v = builder.sext(val,t)
-   builder.store(v,var)
+   if varsigned:
+      t = SIntType(vart)
+   else:
+      t = ir.IntType(vart)
+
+   if valt != vart:
+      if varsigned:
+        val = builder.sext(val,t)
+      else:
+        val = builder.zext(val,t)
+
+   builder.store(val,var)
 
 
 def emit_local_decl(t,lv,builder):
@@ -330,12 +398,20 @@ def emit_local_decl(t,lv,builder):
 def get_type(t):
    assert("BasicType" in t)
    if "int" in t["BasicType"][0]:
+     return SIntType(32)
+   if "uint" in t["BasicType"][0]:
      return ir.IntType(32)
    if "long" in t["BasicType"][0]:
+     return SIntType(64)
+   if "ulong" in t["BasicType"][0]:
      return ir.IntType(64)
    if "short" in t["BasicType"][0]:
+     return SIntType(16)
+   if "ushort" in t["BasicType"][0]:
      return ir.IntType(16)
-   if "byte" in t["BasicType"][0]:
+   if "char" in t["BasicType"][0]:
+     return SIntType(8)
+   if "uchar" in t["BasicType"][0]:
      return ir.IntType(8)
    if "float" in t["BasicType"][0]:
      return ir.FloatType(32)
@@ -387,7 +463,7 @@ def emit_method(method,module,decl_only):
      context[name] = arg
 
    block = func.append_basic_block('entry')
-   builder = ir.IRBuilder(block)
+   builder = Builder(block)
 
    methodbody = method["MethodBody"][0]
    for bs in methodbody["BlockStatements"][0]["BlockStatement"]:
@@ -416,5 +492,5 @@ def emit_module(unit,decl_only):
       emit_class(t["ClassDeclaration"][0],module,decl_only)
 
    if not decl_only:
-      print str(module)
+      print str(module).replace("s32","i32").replace("s16","i16").replace("s64","i64").replace("s8","i8")
 
