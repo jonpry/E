@@ -41,7 +41,7 @@ public final class EchoServer {
     }
 
     public static void constant_test() throws Exception {
-        int a = 127;
+        int a = 127ub;
         int b = 128;
         int c = 32796;
         int d = 65535;

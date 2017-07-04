@@ -13,14 +13,22 @@ def emit_integer_literal(il,builder):
    else:
       val = int(il["HexNumeral"][0],16)
 
+   signed = True
+   if "SignSuffix" in il:
+      signed = False
+         
 
-   #TODO: try to infer signed constants
+   #try to infer signed constants
+   twidge = 0
+   if signed:
+      twidge = 1
+
    sz = 8
-   if val > 255:
+   if val >= (1<<(8-twidge)):
      sz = 16
-   if val >= (1<<16):
+   if val >= (1<<(16-twidge)):
      sz = 32
-   if val >= (1<<32):
+   if val >= (1<<(32-twidge)):
      sz = 64
  
    if "SizeSuffix" in il:
@@ -35,6 +43,8 @@ def emit_integer_literal(il,builder):
         nsz = 8
      assert(nsz >= sz)
      sz = nsz
+   if signed:
+      return ir.Constant(SIntType(sz), val)
    return ir.Constant(ir.IntType(sz), val)
 
 def emit_literal(l,builder):
