@@ -1017,7 +1017,11 @@ IntegerLiteral
       / BinaryNumeral
       / OctalNumeral            // May be a prefix of HexNumeral or BinaryNumeral
       / DecimalNumeral          // May be a prefix of OctalNumeral
-      ) SizeSuffix?
+      ) SignSuffix? SizeSuffix?
+    ;
+
+SignSuffix
+    = r"[uU]"
     ;
 
 SizeSuffix

@@ -67,7 +67,7 @@ def emit_primary(p,builder):
                  e = a["Expression"][i]
                  t = func.args[i]
                  e = emit_expression(e,builder)
-                 e,foo,signed = auto_cast(e,t,builder,single=True,force_sign=str(t)[0])
+                 e,foo,signed,flo = auto_cast(e,t,builder,single=True,force_sign=str(t)[0])
                  args.append(e)
            return builder.call(func,args)
       else:
@@ -83,6 +83,18 @@ def emit_unary_expression(ue,builder):
    global context
    if "Primary" in ue:
       a = emit_primary(ue["Primary"][0],builder)
+   if "PrefixOp" in ue:
+      po = ue["PrefixOp"][0]
+      a = emit_unary_expression(ue["UnaryExpression"][0],builder)
+      if "TILDA" in po:
+         a = builder.not_(a)
+      else:
+         assert(False)
+   if "Type" in ue:
+      t = get_type(ue["Type"][0])
+      a = emit_unary_expression(ue["UnaryExpression"][0],builder)
+      a = explicit_cast(a,t,builder)
+
    if "PostfixOp" in ue:
       for e in ue["PostfixOp"]:
          for k,v in context.items():
@@ -103,7 +115,7 @@ def emit_multiplicative_expression(me,builder):
    if "StarDivModUnaryExpression" in me:
       for e in me["StarDivModUnaryExpression"]:
          b = emit_unary_expression(e["UnaryExpression"][0],builder) 
-         a,b,signed = auto_cast(a,b,builder,i=32)
+         a,b,signed,flo = auto_cast(a,b,builder,i=32)
          if "STAR" in e:
             a = builder.mul(a,b)
          elif "DIV" in e:
@@ -124,11 +136,17 @@ def emit_additive_expression(ae,builder):
    if "PlusOrMinusMultiplicativeExpression" in ae:
       for e in ae["PlusOrMinusMultiplicativeExpression"]:
          b = emit_multiplicative_expression(e["MultiplicativeExpression"][0],builder)
-         a,b,signed = auto_cast(a,b,builder,i=32)
+         a,b,signed,flo = auto_cast(a,b,builder,i=32)
          if "PLUS" in e:
-            a = builder.add(a,b)
+            if flo:
+              a = builder.fadd(a,b)
+            else:
+              a = builder.add(a,b)
          else:
-            a = builder.sub(a,b)
+            if flo:
+               a = builder.fsub(a,b)
+            else:
+               a = builder.sub(a,b)
    return a
 
 def emit_shift_expression(se,builder):
@@ -136,7 +154,7 @@ def emit_shift_expression(se,builder):
    if "ShiftAdditiveExpression" in se:
      for e in se["ShiftAdditiveExpression"]:
        b = emit_additive_expression(e["AdditiveExpression"][0],builder)
-       a,b,signed = auto_cast(a,b,builder,i=32)
+       a,b,signed,flo = auto_cast(a,b,builder,i=32)
        if "SR" in e:
           if signed:
              a = builder.ashr(a,b)
@@ -166,7 +184,13 @@ def emit_relational_expression(re,builder):
            op = ">"
          if "GE" in e:
            op = ">="	
-         a = builder.icmp_signed(op,a,b)
+         a,b,signed,flo = auto_cast(a,b,builder,i=32)
+         if flo:
+            a = builder.fcmp_ordered(op,a,b)
+         elif signed:
+            a = builder.icmp_signed(op,a,b)
+         else:
+            a = builder.icmp_unsigned(op,a,b)
    return a
 
 def emit_equality_expression(ee,builder):
@@ -180,14 +204,22 @@ def emit_equality_expression(ee,builder):
            op = "=="
          if "NOTEQUAL" in e:
            op = "!="
-         a = builder.icmp_signed(op,a,b)
+         a,b,signed,flo = auto_cast(a,b,builder,i=32)
+         if flo:
+            a = builder.fcmp_ordered(op,a,b)
+         elif signed:
+            a = builder.icmp_signed(op,a,b)
+         else:
+            a = builder.icmp_unsigned(op,a,b)
    return a
+
 def emit_and_expression(ae,builder):
    a = emit_equality_expression(ae["EqualityExpression"][0],builder)
    if "AndEqualityExpression" in ae:
       for e in ae["AndEqualityExpression"]:
          b = emit_equality_expression(e["EqualityExpression"][0],builder)
-         a,b,signed = auto_cast(a,b,builder,i=32)
+         a,b,signed,flo = auto_cast(a,b,builder,i=32)
+         assert(not flo)
          a = builder.and_(a,b)
    return a
 
@@ -196,7 +228,8 @@ def emit_exlusive_or_expression(ee,builder):
    if "HatAndExpression" in ee:
      for e in ee["HatAndExpression"]:
         b = emit_and_expression(e["AndExpression"][0],builder)
-        a,b,signed = auto_cast(a,b,builder,i=32)
+        a,b,signed,flo = auto_cast(a,b,builder,i=32)
+        assert(not flo)
         a = builder.xor(a,b)      
    return a
 
@@ -205,7 +238,8 @@ def emit_inclusive_or_expression(ie,builder):
    if "OrExclusiveOrExpression" in ie:
       for e in ie["OrExclusiveOrExpression"]:
         b = emit_exlusive_or_expression(e["ExclusiveOrExpression"][0],builder)
-        a,b,signed = auto_cast(a,b,builder,i=32)
+        a,b,signed,flo = auto_cast(a,b,builder,i=32)
+        assert(not flo)
         a = builder.or_(a,b)      
    return a
 
@@ -236,7 +270,7 @@ def emit_conditional_expression(ce,builder):
       for e in ce["QueryConditionalOrExpression"]:
          ex = emit_expression(e["Expression"][0],builder)
          ne = emit_conditional_expression(e,builder)
-         ex,ne,signed = auto_cast(ex,ne,builder)
+         ex,ne,signed,flo = auto_cast(ex,ne,builder)
          a = builder.select(a,ex,ne)
    return a
 
@@ -253,31 +287,56 @@ def emit_expression(se, builder):
             store(v,context[var],builder)
             continue
          cv = builder.load(context[var])
-         v,cv,signed = auto_cast(v,cv,builder)
+         v,cv,signed,flo = auto_cast(v,cv,builder)
          if "PLUSEQU" in op:
-            v = builder.add(cv,v)    
+            if flo:
+               v = builder.fadd(cv,v)    
+            else:
+               v = builder.add(cv,v)    
          elif "MINUSEQU" in op:
-            v = builder.sub(cv,v)
+            if flo:
+               v = builder.fsub(cv,v)    
+            else:
+               v = builder.sub(cv,v)    
          elif "STAREQU" in op:
-            v = builder.mul(cv,v)
+            if flo:
+               v = builder.fmul(cv,v)    
+            else:
+               v = builder.mul(cv,v)    
          elif "DIVEQU" in op:
-            v = builder.sdiv(cv,v)
+            if flo:
+               v = builder.fdiv(cv,v)
+            elif signed:
+               v = builder.sdiv(cv,v)
+            else:
+               v = builder.udiv(cv,v)
          elif "MODEQU" in op:
-            v = builder.srem(cv,v)
+            if flo:
+               v = builder.frem(cv,v)
+            elif signed:
+               v = builder.srem(cv,v)
+            else:
+               v = builder.urem(cv,v)
          elif "OREQU" in op:
+            assert(not flo)
             v = builder.or_(cv,v)
          elif "ANDEQU" in op:
+            assert(not flo)
             v = builder.and_(cv,v)
          elif "SLEQU" in op:
+            assert(not flo)
             v = builder.shl(cv,v)
          elif "SREQU" in op:
+            assert(not flo)
             if signed:
                v = builder.ashr(cv,v)   
             else:
                v = builder.lshr(cv,v)    
          elif "BSREQU" in op:
+            assert(not flo)
             v = builder.lshr(cv,v)    
          elif "HATEQU" in op:
+            assert(not flo)
             v = builder.xor(cv,v)    
          else:
             assert(False)
@@ -300,21 +359,40 @@ def emit_statement(s,builder):
 
 context = {}
 
-def auto_cast(a,b,builder,i=None,single=False,force_sign=None):
-   asigned = False
-   if "i" in str(a.type):
-     at = int(str(a.type).split("i")[1])
-   else:
-     at = int(str(a.type).split("s")[1])
-     asigned = True
+def type_info(a):
+   signed = False
+   flo = False
+   if "i" in str(a):
+     t = int(str(a).split("i")[1])
+   elif "s" in str(a):
+     t = int(str(a).split("s")[1])
+     signed = True
+   elif "float" in str(a):
+     t = 32
+     flo = True
+   return (signed,flo,t)
 
-   bsigned = False
-   if "i" in str(b.type):
-     bt = int(str(b.type).split("i")[1])
-   else:
-     bt = int(str(b.type).split("s")[1])
-     bsigned = True
-   
+def auto_cast(a,b,builder,i=None,single=False,force_sign=None):
+   asigned, afloat, at = type_info(a.type)
+   bsigned, bfloat, bt = type_info(b.type)
+
+   if at == 1 or bt == 1:
+      assert(at == bt)
+      return (a,b,False) #no auto cast to integer on boolean
+
+   if afloat or bfloat:
+      if not afloat:
+        if asigned:
+          a = builder.sitofp(a,ir.FloatType())
+        else:
+          a = builder.uitofp(a,ir.FloatType())
+      if not bfloat:
+        if bsigned:
+          b = builder.sitofp(b,ir.FloatType())
+        else:
+          b = builder.uitofp(b,ir.FloatType())
+      return (a,b,False,True)
+
    if force_sign=="i" or (asigned and not bsigned):
      a = builder.tounsigned(a)
 
@@ -325,10 +403,6 @@ def auto_cast(a,b,builder,i=None,single=False,force_sign=None):
      a = builder.tosigned(a)
      if single==False:
         b = builder.tosigned(b)
-
-   if at == 1 or bt == 1:
-      assert(at == bt)
-      return (a,b,False) #no auto cast to integer on boolean
 
    signed = (asigned and bsigned and force_sign != "i") or force_sign == "s"
    if signed:
@@ -349,24 +423,62 @@ def auto_cast(a,b,builder,i=None,single=False,force_sign=None):
      elif bt < i  and i != None:
        b = efunc(b,tfunc(i))
 
-   return (a,b,signed)
+   return (a,b,signed,False)
+
+def explicit_cast(a,t,builder):
+   asigned, afloat, at = type_info(a.type)
+   tsigned, tfloat, tt = type_info(t)
+
+   if tt == 1:
+      if at == 1:
+         return a
+
+      if afloat:
+         return builder.fcmp_unordered("!=",a,ir.FloatType().wrap_constant_value(0))
+      return builder.icmp("!=",a,a.type.wrap_constant_value(0))
+
+   if tfloat:
+      if afloat:
+         return a
+      if asigned:
+         return builder.sitofp(a,ir.FloatType())
+      return builder.uitofp(a,ir.FloatType())
+
+   if tt < at:
+      return builder.trunc(a,t)
+
+   if tt > at:
+      if asigned:
+         return builder.sext(a,t)
+      return builder.zext(a,t)
+
+   if tsigned:
+      return builder.tosigned(a,t)
+   return builder.tounsigned(a,t)
 
 
 def store(val,var,builder):
    valsigned = False
+   valfloat = False
    if "i" in str(val.type):
       valt = int(str(val.type).split("i")[1])
-   else:
+   elif "s" in str(val.type):
       valt = int(str(val.type).split("s")[1])
       valsigned = True
+   elif "float" in str(val.type):
+      valt = 32
+      varfloat = True
 
    varsigned = False
+   varfloat = False
    if "i" in str(var.type):
       vart = int(str(var.type).split("*")[0].split("i")[1])
-   else:
+   elif "s" in str(var.type):
       vart = int(str(var.type).split("*")[0].split("s")[1])
       varsigned = True
-
+   elif "float" in str(var.type):
+      vart = 32
+      varfloat = True
    assert(valt <= vart)
 
    if varsigned and not valsigned:
@@ -374,14 +486,23 @@ def store(val,var,builder):
 
    if varsigned:
       t = SIntType(vart)
+   elif varfloat:
+      t = ir.FloatType()
    else:
       t = ir.IntType(vart)
 
-   if valt != vart:
-      if varsigned:
-        val = builder.sext(val,t)
+   if varfloat and not valfloat:
+      if valsigned:
+         val = builder.sitofp(val,t)
       else:
-        val = builder.zext(val,t)
+         val = builder.uitofp(val,t)
+
+   if not varfloat:
+      if valt != vart:
+         if varsigned:
+           val = builder.sext(val,t)
+         else:
+           val = builder.zext(val,t)
 
    builder.store(val,var)
 
@@ -414,9 +535,9 @@ def get_type(t):
    if "uchar" in t["BasicType"][0]:
      return ir.IntType(8)
    if "float" in t["BasicType"][0]:
-     return ir.FloatType(32)
+     return ir.FloatType()
    if "double" in t["BasicType"][0]:
-     return ir.FloatType(64)
+     return ir.DoubleType()
    if "boolean" in t["BasicType"][0]:
      return ir.IntType(1)
 
@@ -439,6 +560,11 @@ def emit_method(method,module,decl_only):
    name = method["Identifier"][0]
 
    if decl_only:
+      tv = method["TypeOrVoid"][0]
+      if "Type" in tv:
+        rtype = get_type(tv["Type"][0])
+      else:
+        rtype = ir.VoidType()
       fps = method["FormalParameters"][0]
       types = []
       names = []
@@ -449,18 +575,17 @@ def emit_method(method,module,decl_only):
            types.append(t)
            names.append(fp["VariableDeclaratorId"][0]["Identifier"][0])
 
-      typo = ir.FunctionType(ir.IntType(32), types, False)
+      typo = ir.FunctionType(rtype, types, False)
       func = ir.Function(module, typo, name)
       func.attributes.add("noinline")
-      funcs[name] = {"func" : func, "names" : names}
+      funcs[name] = {"func" : func, "names" : names, "ret" : rtype}
       return
 
    func = funcs[name]["func"]
    context = {}
    for i in range(len(func.args)):
      arg = func.args[i]
-     name = funcs[name]["names"][i]
-     context[name] = arg
+     context[funcs[name]["names"][i]] = arg
 
    block = func.append_basic_block('entry')
    builder = Builder(block)
@@ -468,6 +593,9 @@ def emit_method(method,module,decl_only):
    methodbody = method["MethodBody"][0]
    for bs in methodbody["BlockStatements"][0]["BlockStatement"]:
       emit_blockstatement(bs,builder)
+
+   if funcs[name]["ret"] == ir.VoidType():
+      builder.ret_void()
 
 
 def emit_member(member,module,decl_only):
@@ -480,12 +608,64 @@ def emit_class(cls,module,decl_only):
    for decl in decls:
       emit_member(decl["MemberDecl"][0],module,decl_only)
 
+def make_bytearray(buf):
+    """
+    Make a byte array constant from *buf*.
+    """
+    b = bytearray(buf)
+    n = len(b)
+    return ir.Constant(ir.ArrayType(ir.IntType(8), n), b)
+
+def global_constant(module, name, value):
+    """
+    Get or create a (LLVM module-)global constant with *name* or *value*.
+    """
+    data = ir.GlobalVariable(module,value.type,name)
+    data.global_constant = True
+    data.initializer = value
+    return data
+
+def emit_print_func(module,name,fmt,typo):
+    global funcs
+    fnty = ir.FunctionType(ir.VoidType(), [typo])
+    func = ir.Function(module, fnty, name=name)
+    func.attributes.add("noinline")
+    block = func.append_basic_block('entry')
+    builder = Builder(block)
+    funcs[name] = {"func" : func, "names" : ["v"], "ret" : ir.VoidType()}
+    pfn = funcs["printf"]["func"]
+
+    #create global for string
+    fmt_bytes = make_bytearray((fmt + '\n\00').encode('ascii'))
+    global_fmt = global_constant(module, "print_" + name.split("_")[1] + "_format", fmt_bytes)
+    global_fmt = builder.bitcast(global_fmt, ir.IntType(8).as_pointer())
+
+    builder.call(pfn, [global_fmt, func.args[0]])
+    builder.ret_void()
+
+
+def emit_print_funcs(module):
+    global funcs
+    fnty = ir.FunctionType(ir.IntType(32), [ir.IntType(8).as_pointer()], var_arg=True)
+    fn = ir.Function(module, fnty, name="printf")
+    funcs["printf"] = {"func" : fn, "names" : [], "ret" : ir.IntType(32)}
+
+    emit_print_func(module, "print_uint", "%u", ir.IntType(32))
+    emit_print_func(module, "print_ulong", "%ul", ir.IntType(64))
+    emit_print_func(module, "print_int", "%d", ir.IntType(32))
+    emit_print_func(module, "print_long", "%dl", ir.IntType(64))
+    emit_print_func(module, "print_float", "%f", ir.FloatType())
+    emit_print_func(module, "print_double", "%f", ir.DoubleType())
+
 module = None
 def emit_module(unit,decl_only):
    global module
    if module == None:
       module = ir.Module(name="main")
       module.triple = binding.get_default_triple()
+
+   if not decl_only:
+       emit_print_funcs(module)
 
    for t in unit["TypeDeclaration"]:
       assert "ClassDeclaration" in t

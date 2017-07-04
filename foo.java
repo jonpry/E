@@ -40,17 +40,33 @@ public final class EchoServer {
         return i;
     }
 
+    public static void constant_test() throws Exception {
+        int a = 127;
+        int b = 128;
+        int c = 32796;
+        int d = 65535;
+
+        print_int(a);
+        print_int(b);
+        print_int(c);
+        print_int(d);
+    }
+
     public static int main() throws Exception {
+        constant_test();
+
+        float r=1;
+        r += 1;
         int i=0;
         long v=100l;
         boolean f=false;	
-        f = f || true && true;
+        f = f || true && true || ~false;
         i = f ? i - 2 + 3 * 2 / 2 % 3 << 1 >> 1 ^ 4 | 2 & 2 + (3 * 2) << 1 >>> 1: 0;
         i = i + 0x10;
         f = i > 100;
         f = i++ != 120;
         i += func(2);
-        i -= 1;
+        i -= (short)1;
         i |= 3;
         i <<= 2;
         i >>= 1;
@@ -60,6 +76,7 @@ public final class EchoServer {
         i %= 1000;
         i &= 0xFFFFF;
         i ^= 1;
+        print_int(i);
         return i;
     }
 }
