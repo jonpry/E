@@ -40,20 +40,35 @@ public final class EchoServer {
         return i;
     }
 
-    public static void constant_test() throws Exception {
+    public static void constant_int_test() throws Exception {
         int a = 127ub;
         int b = 128;
-        int c = 32796;
-        int d = 65535;
+        int c = 32767;
+        int d = 65535u;
+        int e = 0xFFFFui;
 
         print_int(a);
         print_int(b);
         print_int(c);
         print_int(d);
+        print_int(e);
+    }
+
+    public static void constant_float_test() throws Exception {
+        float a = 0.111;
+        float b = 2;
+        float c = 0.222;
+        double d = 0.312;
+
+        print_float(a);
+        print_float(b);
+        print_float(c);
+        print_double(d);
     }
 
     public static int main() throws Exception {
-        constant_test();
+        constant_int_test();
+        constant_float_test();
 
         float r=1;
         r += 1;

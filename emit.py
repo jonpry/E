@@ -509,7 +509,7 @@ def store(val,var,builder):
 
    if not varfloat:
       if valt != vart:
-         if varsigned:
+         if valsigned:
            val = builder.sext(val,t)
          else:
            val = builder.zext(val,t)
