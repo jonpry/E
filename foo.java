@@ -55,12 +55,12 @@ public final class EchoServer {
     }
 
     public static void constant_float_test() throws Exception {
-        float e = .1;
-        float f = 1.;
         float a = 0.111;
         float b = 2;
         float c = 0.222f;
         double d = 0.312d;
+        float e = .1;
+        float f = 1.;
 
         print_float(a);
         print_float(b);

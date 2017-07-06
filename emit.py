@@ -721,7 +721,7 @@ def emit_print_funcs(module):
     emit_print_func(module, "print_ulong", "%ul", ir.IntType(64))
     emit_print_func(module, "print_int", "%d", ir.IntType(32))
     emit_print_func(module, "print_long", "%dl", ir.IntType(64))
-    emit_print_func(module, "print_float", "%f", ir.FloatType())
+    emit_print_func(module, "print_float", "%f", ir.DoubleType())
     emit_print_func(module, "print_double", "%f", ir.DoubleType())
 
 module = None
