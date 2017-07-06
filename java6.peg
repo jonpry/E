@@ -1077,7 +1077,7 @@ BinaryExponent
     ;
 
 Digits
-    = r"[0-9]"(r"[_]"*r"[0-9]")*
+    = r"[0-9][_]*[0-9]*"
     ;
 
 HexDigits

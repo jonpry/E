@@ -7,6 +7,29 @@ from llvmlite import ir
 from llvmlite import binding
 from signed import SIntType, Builder
 
+def emit_float_literal(fl,builder):
+   dat = fl["DecimalFloat"][0]
+   i = "0"
+   frac = "0"
+   if dat.keys()[0] == "StrMatch":
+      frac = dat["Digits"][0]
+   else:
+      i = dat["Digits"][0]
+      if len(dat["Digits"]) > 1:
+         frac = dat["Digits"][1]
+
+   st = i + "." + frac
+
+   double = False
+   if "RegExMatch" in dat:
+      m = dat["RegExMatch"][0]
+      if m.lower() == "d":
+         double = True
+
+   if double:
+      return ir.Constant(ir.DoubleType(), float(st))   
+   return ir.Constant(ir.FloatType(), float(st))   
+
 def emit_integer_literal(il,builder): 
    if "DecimalNumeral" in il:
       val = int(il["DecimalNumeral"][0])
@@ -54,6 +77,8 @@ def emit_literal(l,builder):
        return ir.Constant(ir.IntType(1), 0)
    if "true" in l:
        return ir.Constant(ir.IntType(1), 1)
+   if "FloatLiteral" in l:
+       return emit_float_literal(l["FloatLiteral"][0],builder)
    assert(False)
 
 def is_pointer(var):
@@ -380,6 +405,9 @@ def type_info(a):
    elif "float" in str(a):
      t = 32
      flo = True
+   elif "double" in str(a):
+     t = 64
+     flo = True
    return (signed,flo,t)
 
 def auto_cast(a,b,builder,i=None,single=False,force_sign=None):
@@ -390,6 +418,7 @@ def auto_cast(a,b,builder,i=None,single=False,force_sign=None):
       assert(at == bt)
       return (a,b,False) #no auto cast to integer on boolean
 
+   #TODO, this is all wrong need doubles for 64bit ints or other doubles
    if afloat or bfloat:
       if not afloat:
         if asigned:
@@ -478,6 +507,9 @@ def store(val,var,builder):
    elif "float" in str(val.type):
       valt = 32
       varfloat = True
+   elif "double" in str(val.type):
+      valt = 64
+      varfloat = True
 
    varsigned = False
    varfloat = False
@@ -489,7 +521,9 @@ def store(val,var,builder):
    elif "float" in str(var.type):
       vart = 32
       varfloat = True
-   assert(valt <= vart)
+   elif "double" in str(var.type):
+      vart = 64
+      varfloat = True
 
    if varsigned and not valsigned:
       val = builder.tosigned(val)
@@ -497,7 +531,10 @@ def store(val,var,builder):
    if varsigned:
       t = SIntType(vart)
    elif varfloat:
-      t = ir.FloatType()
+      if vart == 32:
+         t = ir.FloatType()
+      else:
+         t = ir.DoubleType()
    else:
       t = ir.IntType(vart)
 
@@ -507,13 +544,16 @@ def store(val,var,builder):
       else:
          val = builder.uitofp(val,t)
 
-   if not varfloat:
+   if varfloat:
+      if valt != vart:
+         val = builder.fpext(val,t)
+   else:
       if valt != vart:
          if valsigned:
            val = builder.sext(val,t)
          else:
            val = builder.zext(val,t)
-
+   
    builder.store(val,var)
 
 

@@ -135,6 +135,9 @@ def reparent_node(parse_tree,position,rule):
     parent = get_node(parse_tree,position[:-1]) #find parent
     #print dparent
 
+    if len(parent) > 1:
+      return
+
     for i in range(len(dparent)):
       if dparent[i] == parent:
         dparent[i] = parent.items()[0][1][0]
@@ -269,6 +272,8 @@ def main():
              (u"QualifiedIdentifier",		assemble_qi)]
 
     parse_tree = parse_file("foo.java");
+
+    #pretty_print(parse_tree)
 
     for rule in rules:
         execute_rule(parse_tree,rule)
