@@ -1053,8 +1053,8 @@ FloatLiteral
     ;
 
 DecimalFloat
-    = Digits "." Digits?  Exponent? r"[fFdD]"?
-    / "." Digits Exponent? r"[fFdD]"?
+    = Digits DOT Digits?  Exponent? r"[fFdD]"?
+    / DOT Digits Exponent? r"[fFdD]"?
     / Digits Exponent r"[fFdD]"?
     / Digits Exponent? r"[fFdD]"
     ;

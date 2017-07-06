@@ -9,9 +9,10 @@ from signed import SIntType, Builder
 
 def emit_float_literal(fl,builder):
    dat = fl["DecimalFloat"][0]
+   #print json.dumps(dat)
    i = "0"
    frac = "0"
-   if dat.keys()[0] == "StrMatch":
+   if dat.keys()[0] == "DOT":
       frac = dat["Digits"][0]
    else:
       i = dat["Digits"][0]
