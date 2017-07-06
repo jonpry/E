@@ -422,14 +422,31 @@ def auto_cast(a,b,builder,i=None,single=False,force_sign=None):
    if afloat or bfloat:
       if not afloat:
         if asigned:
-          a = builder.sitofp(a,ir.FloatType())
+          if at > 32:
+             a = builder.sitofp(a,ir.DoubleType())
+          else:
+             a = builder.sitofp(a,ir.FloatType())
         else:
-          a = builder.uitofp(a,ir.FloatType())
-      if not bfloat:
+          if at > 32:
+             a = builder.uitofp(a,ir.DoubleType())
+          else:
+             a = builder.uitofp(a,ir.FloatType())
+      elif not bfloat:
         if bsigned:
-          b = builder.sitofp(b,ir.FloatType())
+          if bt > 32:
+             b = builder.sitofp(b,ir.DoubleType())
+          else:
+             b = builder.sitofp(b,ir.FloatType())
         else:
-          b = builder.uitofp(b,ir.FloatType())
+          if bt > 32:
+             b = builder.uitofp(b,ir.DoubleType())
+          else:
+             b = builder.uitofp(b,ir.FloatType())
+      else: #both are floats
+        if at > bt:
+           b = builder.fpext(b,ir.DoubleType())
+        elif at < bt:
+           a = builder.fpext(a,ir.DoubleType())
       return (a,b,False,True)
 
    if force_sign=="i" or (asigned and not bsigned):
