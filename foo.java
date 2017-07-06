@@ -70,9 +70,28 @@ public final class EchoServer {
         print_float(f);
     }
 
+    public static void bool_interp_test() throws Exception {
+        int a = 1 ? 1 : 2;
+        int b = 0 ? 1 : 2;
+        int c = 0.1 ? 1 : 2;
+        int d = 1.0 ? 1 : 2;
+        int e = 0.0 ? 1 : 2;
+        int f = -1 ? 1 : 2;
+        int g = -1.0 ? 1 : 2;
+
+        print_int(a);
+        print_int(b);
+        print_int(c);
+        print_int(d);
+        print_int(e);
+        print_int(f);
+        print_int(g);
+    }
+
     public static int main() throws Exception {
         constant_int_test();
         constant_float_test();
+        bool_interp_test();
 
         float r=1;
         r += 1;

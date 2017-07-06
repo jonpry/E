@@ -124,7 +124,13 @@ def emit_unary_expression(ue,builder):
       a = emit_unary_expression(ue["UnaryExpression"][0],builder)
       if "TILDA" in po:
          a = builder.not_(a)
+      elif "MINUS" in po:
+         if "float" in str(a.type) or "double" in str(a.type):
+            a = builder.fsub(ir.Constant(a.type,0),a)
+         else:
+            a = builder.neg(a)
       else:
+         print json.dumps(po)
          assert(False)
    if "Type" in ue:
       t = get_type(ue["Type"][0])
@@ -307,7 +313,7 @@ def emit_conditional_expression(ce,builder):
          ex = emit_expression(e["Expression"][0],builder)
          ne = emit_conditional_expression(e,builder)
          ex,ne,signed,flo = auto_cast(ex,ne,builder)
-         a = builder.select(a,ex,ne)
+         a = builder.select(explicit_cast(a,ir.IntType(1),builder),ex,ne)
    return a
 
 def emit_expression(se, builder):
@@ -491,8 +497,8 @@ def explicit_cast(a,t,builder):
          return a
 
       if afloat:
-         return builder.fcmp_unordered("!=",a,ir.FloatType().wrap_constant_value(0))
-      return builder.icmp("!=",a,a.type.wrap_constant_value(0))
+         return builder.fcmp_unordered("!=",a,ir.Constant(ir.FloatType(),0))
+      return builder.icmp_unsigned("!=",a,ir.Constant(a.type,0))
 
    if tfloat:
       if afloat:
