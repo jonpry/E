@@ -119,12 +119,22 @@ public final class EchoServer {
         print_int(j);
     }
 
+    public static void for_test(int k) throws Exception {
+        int i=0;
+        int j=0;
+        for(i=0; i < k; i++){
+           j = i + 2;
+        }
+        print_int(j);
+    }
+
     public static int main() throws Exception {
         constant_int_test();
         constant_float_test();
         bool_interp_test();
         block_test();
         if_test(true);
+        for_test(10);
 
         float r=1;
         r += 1;

@@ -393,6 +393,14 @@ def emit_return(r,builder):
 def emit_par_expression(pe,builder):
    return emit_expression(pe["Expression"][0],builder)
 
+def emit_for_init(fi,builder):
+   if "StatementExpression" in fi:
+      emit_expression(fi["StatementExpression"][0],builder)
+
+def emit_for_update(fu,builder):
+   if "StatementExpression" in fu:
+      emit_expression(fu["StatementExpression"][0],builder)
+  
 def emit_statement(s,builder):
    if "StatementExpression" in s:
       return emit_expression(s["StatementExpression"][0],builder)
@@ -404,6 +412,26 @@ def emit_statement(s,builder):
        for bs in block["BlockStatements"][0]["BlockStatement"]:
           emit_blockstatement(bs,builder)
        context.pop()
+       return
+   if "FOR" in s:
+       context.push(False)
+       emit_for_init(s["ForInit"][0],builder)
+       new_block = builder.append_basic_block()
+       builder.branch(new_block)
+       builder.position_at_end(new_block)
+
+       cond = emit_expression(s["Expression"][0],builder)
+       cond = explicit_cast(cond,ir.IntType(1),builder)
+       st_then = s["Statement"][0]
+       with builder.if_then(cond) as then:
+          emit_statement(st_then,builder)
+          emit_for_update(s["ForUpdate"][0],builder)
+          builder.branch(new_block)
+
+       #new_block = builder.append_basic_block()
+       #builder.branch(new_block)
+       #builder.position_at_end(new_block)
+       context.pop() 
        return
    if "IF" in s:
        c = emit_par_expression(s["ParExpression"][0],builder)
