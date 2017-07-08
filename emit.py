@@ -390,6 +390,9 @@ def emit_expression(se, builder):
 def emit_return(r,builder):
    builder.ret(emit_expression(r,builder))
 
+def emit_par_expression(pe,builder):
+   return emit_expression(pe["Expression"][0],builder)
+
 def emit_statement(s,builder):
    if "StatementExpression" in s:
       return emit_expression(s["StatementExpression"][0],builder)
@@ -401,6 +404,25 @@ def emit_statement(s,builder):
        for bs in block["BlockStatements"][0]["BlockStatement"]:
           emit_blockstatement(bs,builder)
        context.pop()
+       return
+   if "IF" in s:
+       c = emit_par_expression(s["ParExpression"][0],builder)
+       c = explicit_cast(c,ir.IntType(1),builder)
+       st_then = s["Statement"][0]
+
+       if len(s["Statement"]) > 1:
+          st_otherwise = s["Statement"][1]
+
+          with builder.if_else(c) as (then, otherwise):
+             with then:
+                emit_statement(st_then,builder)
+             with otherwise:
+                emit_statement(st_otherwise,builder)
+       else:
+          with builder.if_then(c) as then:
+             emit_statement(st_then,builder)
+
+       #print json.dumps(st)
        return
    print json.dumps(s)
    assert(False)
@@ -427,7 +449,7 @@ def auto_cast(a,b,builder,i=None,single=False,force_sign=None):
 
    if at == 1 or bt == 1:
       assert(at == bt)
-      return (a,b,False) #no auto cast to integer on boolean
+      return (a,b,False,False) #no auto cast to integer on boolean
 
    #TODO, this is all wrong need doubles for 64bit ints or other doubles
    if afloat or bfloat:

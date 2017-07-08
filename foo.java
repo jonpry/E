@@ -103,11 +103,28 @@ public final class EchoServer {
         print_int(i);
     }
 
+    public static void if_test(boolean c) throws Exception {
+        int i=0;
+        int j=0;
+        if(c){
+            i=1;
+        }else{
+            i=2;
+        }
+        if(c){
+            j = 2;
+        }
+
+        print_int(i);
+        print_int(j);
+    }
+
     public static int main() throws Exception {
         constant_int_test();
         constant_float_test();
         bool_interp_test();
         block_test();
+        if_test(true);
 
         float r=1;
         r += 1;
