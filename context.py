@@ -8,8 +8,9 @@ def get(var):
    global context
    return context[var]
 
-def set(var,v):
+def create(var,v):
    global context
+   assert(var not in context)
    context[var] = v
 
 def items():
@@ -28,4 +29,16 @@ def pop():
    global context
    global cstack   
    context = cstack.pop()
-  
+
+breaks = []
+def push_break(tgt):
+   global breaks
+   breaks.append(tgt)
+
+def pop_break():
+   global breaks
+   breaks.pop()
+
+def get_break():
+   global breaks
+   return breaks[-1]

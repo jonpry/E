@@ -423,14 +423,22 @@ def emit_statement(s,builder):
        cond = emit_expression(s["Expression"][0],builder)
        cond = explicit_cast(cond,ir.IntType(1),builder)
        st_then = s["Statement"][0]
-       with builder.if_then(cond) as then:
-          emit_statement(st_then,builder)
-          emit_for_update(s["ForUpdate"][0],builder)
-          builder.branch(new_block)
 
-       #new_block = builder.append_basic_block()
-       #builder.branch(new_block)
-       #builder.position_at_end(new_block)
+       true_block = builder.append_basic_block()
+       end_block = builder.append_basic_block()
+ 
+       builder.cbranch(cond,true_block,end_block)
+       builder.position_at_end(true_block)
+
+       #for loop contents
+       context.push_break(end_block)
+
+       emit_statement(st_then,builder)
+       emit_for_update(s["ForUpdate"][0],builder)
+       builder.branch(new_block)
+
+       context.pop_break()
+       builder.position_at_end(end_block)
        context.pop() 
        return
    if "IF" in s:
@@ -452,6 +460,10 @@ def emit_statement(s,builder):
 
        #print json.dumps(st)
        return
+   if "BREAK" in s:
+       builder.branch(context.get_break())
+       return 
+
    print json.dumps(s)
    assert(False)
 
@@ -636,7 +648,7 @@ def store(val,var,builder):
 
 
 def emit_local_decl(t,lv,builder):
-   context.set(lv["Identifier"][0], builder.alloca(t))
+   context.create(lv["Identifier"][0], builder.alloca(t))
 
    if "VariableInitializer" in lv:
       val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],builder)
@@ -711,7 +723,7 @@ def emit_method(method,module,decl_only):
    context.push(True)
    for i in range(len(func.args)):
      arg = func.args[i]
-     context.set(funcs[name]["names"][i], arg)
+     context.create(funcs[name]["names"][i], arg)
 
    block = func.append_basic_block('entry')
    builder = Builder(block)

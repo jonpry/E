@@ -124,6 +124,8 @@ public final class EchoServer {
         int j=0;
         for(i=0; i < k; i++){
            j = i + 2;
+           if(i % 10 == 7)
+             break;
         }
         print_int(j);
     }
