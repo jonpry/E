@@ -647,6 +647,12 @@ def store(val,var,builder):
    builder.store(val,var)
 
 
+def emit_static_decl(t,st,module,decl_only):
+   if decl_only:
+      data = ir.GlobalVariable(module,t,st["Identifier"][0])
+      data.initializer = ir.Constant(t,0)
+      return data
+
 def emit_local_decl(t,lv,builder):
    context.create(lv["Identifier"][0], builder.alloca(t))
 
@@ -738,7 +744,12 @@ def emit_method(method,module,decl_only):
 
 def emit_member(member,module,decl_only):
    if "MethodDeclarator" in member:
-      emit_method(member["MethodDeclarator"][0],module,decl_only)
+      return emit_method(member["MethodDeclarator"][0],module,decl_only)
+   if "VariableDeclarators" in member:
+      t = get_type(member["Type"][0])
+      return emit_static_decl(t,member["VariableDeclarators"][0]["VariableDeclarator"][0],module,decl_only)
+   print json.dumps(member)
+   assert(False)
 
 def emit_class(cls,module,decl_only):
    body = cls["ClassBody"][0]
