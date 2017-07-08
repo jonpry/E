@@ -6,6 +6,7 @@ from collections import OrderedDict
 from llvmlite import ir
 from llvmlite import binding
 from signed import SIntType, Builder
+import context
 
 def emit_float_literal(fl,builder):
    dat = fl["DecimalFloat"][0]
@@ -86,7 +87,6 @@ def is_pointer(var):
    return len(str(var.type).split("*")) > 1
 
 def emit_primary(p,builder):
-   global context
    global funcs
    if "Literal" in p:
       return emit_literal(p["Literal"][0],builder)
@@ -107,16 +107,15 @@ def emit_primary(p,builder):
                  args.append(e)
            return builder.call(func,args)
       else:
-         if is_pointer(context[var]):
-            return builder.load(context[var])
-         return context[var]
+         if is_pointer(context.get(var)):
+            return builder.load(context.get(var))
+         return context.get(var)
    if "ParExpression" in p:
       v= emit_expression(p["ParExpression"][0]["Expression"][0],builder)
       return v
    assert(False)
 
 def emit_unary_expression(ue,builder):
-   global context
    if "Primary" in ue:
       a = emit_primary(ue["Primary"][0],builder)
    if "PrefixOp" in ue:
@@ -317,7 +316,6 @@ def emit_conditional_expression(ce,builder):
    return a
 
 def emit_expression(se, builder):
-   global context
    v = None
    if "ConditionalExpression" in se:
       v = emit_conditional_expression(se["ConditionalExpression"][0],builder)
@@ -326,9 +324,9 @@ def emit_expression(se, builder):
          var = se["LeftHandSide"][i]["QualifiedIdentifier"][0]
          op = se["AssignmentOperator"][i]
          if "EQU" in op:
-            store(v,context[var],builder)
+            store(v,context.get(var),builder)
             continue
-         cv = builder.load(context[var])
+         cv = builder.load(context.get(var))
          v,cv,signed,flo = auto_cast(v,cv,builder)
          if "PLUSEQU" in op:
             if flo:
@@ -383,7 +381,7 @@ def emit_expression(se, builder):
          else:
             assert(False)
 
-         store(v,context[var],builder)
+         store(v,context.get(var),builder)
 
 
    assert v!=None
@@ -397,9 +395,15 @@ def emit_statement(s,builder):
       return emit_expression(s["StatementExpression"][0],builder)
    if "RETURN" in s:
       return emit_return(s["Expression"][0],builder)
+   if "Block" in s:
+       context.push(False)
+       block = s["Block"][0]
+       for bs in block["BlockStatements"][0]["BlockStatement"]:
+          emit_blockstatement(bs,builder)
+       context.pop()
+       return
+   print json.dumps(s)
    assert(False)
-
-context = {}
 
 def type_info(a):
    signed = False
@@ -582,12 +586,11 @@ def store(val,var,builder):
 
 
 def emit_local_decl(t,lv,builder):
-   global context
-   context[lv["Identifier"][0]] = builder.alloca(t)
+   context.set(lv["Identifier"][0], builder.alloca(t))
 
    if "VariableInitializer" in lv:
       val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],builder)
-      var = context[lv["Identifier"][0]]
+      var = context.get(lv["Identifier"][0])
       store(val,var,builder)
 
 def get_type(t):
@@ -630,7 +633,6 @@ def emit_blockstatement(bs,builder):
 funcs = {}
 def emit_method(method,module,decl_only):
    global funcs
-   global context
    name = method["Identifier"][0]
 
    if decl_only:
@@ -656,10 +658,10 @@ def emit_method(method,module,decl_only):
       return
 
    func = funcs[name]["func"]
-   context = {}
+   context.push(True)
    for i in range(len(func.args)):
      arg = func.args[i]
-     context[funcs[name]["names"][i]] = arg
+     context.set(funcs[name]["names"][i], arg)
 
    block = func.append_basic_block('entry')
    builder = Builder(block)
@@ -670,7 +672,7 @@ def emit_method(method,module,decl_only):
 
    if funcs[name]["ret"] == ir.VoidType():
       builder.ret_void()
-
+   context.pop()
 
 def emit_member(member,module,decl_only):
    if "MethodDeclarator" in member:

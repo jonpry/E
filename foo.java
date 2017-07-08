@@ -88,10 +88,26 @@ public final class EchoServer {
         print_int(g);
     }
 
+    public static void block_test() throws Exception {
+        int i=1;
+        {
+           int j=2;
+           print_int(j);
+        }
+
+        {
+           int j=3;
+           print_int(j);
+        }
+
+        print_int(i);
+    }
+
     public static int main() throws Exception {
         constant_int_test();
         constant_float_test();
         bool_interp_test();
+        block_test();
 
         float r=1;
         r += 1;
