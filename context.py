@@ -3,10 +3,14 @@ import copy
 
 context = {}
 cstack = []
+globs = {}
 
 def get(var):
    global context
-   return context[var]
+   global globs
+   if var in context:
+      return context[var]
+   return globs[var]
 
 def create(var,v):
    global context
@@ -24,6 +28,15 @@ def push(deep):
       cstack.append(copy.deepcopy(context))
    else:
       cstack.append(context.copy())
+
+def create_global(name,val):
+   global globs;
+   assert(name not in globs)
+   globs[name] = val;
+
+def get_global(name):
+   global globs;
+   return globs[name]
 
 def pop():
    global context

@@ -132,7 +132,7 @@ public final class EchoServer {
         print_int(j);
     }
 
-    public static int main() throws Exception {
+    public static int main_entry() throws Exception {
         constant_int_test();
         constant_float_test();
         bool_interp_test();
@@ -161,6 +161,7 @@ public final class EchoServer {
         i %= 1000;
         i &= 0xFFFFF;
         i ^= 1;
+        i += sFoo;
         print_int(i);
         return i;
     }

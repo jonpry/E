@@ -646,12 +646,27 @@ def store(val,var,builder):
    
    builder.store(val,var)
 
-
-def emit_static_decl(t,st,module,decl_only):
-   if decl_only:
-      data = ir.GlobalVariable(module,t,st["Identifier"][0])
+ctors = []
+def emit_static_decl(t,st,module,pas):
+   global ctors
+   ident = st["Identifier"][0]
+   if pas == "decl_only":
+      data = ir.GlobalVariable(module,t,ident)
       data.initializer = ir.Constant(t,0)
+      context.create_global(ident,data)
       return data
+   if pas == "method_body":
+      typo = ir.FunctionType(ir.VoidType(), [], False)
+      func = ir.Function(module, typo, "init." + ident)
+      func.attributes.add("noinline")
+      block = func.append_basic_block('entry')
+      builder = Builder(block)
+
+      val = emit_expression(st["VariableInitializer"][0]["Expression"][0],builder)
+      var = context.get_global(ident)
+      store(val,var,builder)
+      builder.ret_void()
+      ctors.append(func)
 
 def emit_local_decl(t,lv,builder):
    context.create(lv["Identifier"][0], builder.alloca(t))
@@ -660,6 +675,7 @@ def emit_local_decl(t,lv,builder):
       val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],builder)
       var = context.get(lv["Identifier"][0])
       store(val,var,builder)
+
 
 def get_type(t):
    assert("BasicType" in t)
@@ -699,11 +715,11 @@ def emit_blockstatement(bs,builder):
    assert(False)
 
 funcs = {}
-def emit_method(method,module,decl_only):
+def emit_method(method,module,pas):
    global funcs
    name = method["Identifier"][0]
 
-   if decl_only:
+   if pas == "decl_only":
       tv = method["TypeOrVoid"][0]
       if "Type" in tv:
         rtype = get_type(tv["Type"][0])
@@ -742,20 +758,20 @@ def emit_method(method,module,decl_only):
       builder.ret_void()
    context.pop()
 
-def emit_member(member,module,decl_only):
+def emit_member(member,module,pas):
    if "MethodDeclarator" in member:
-      return emit_method(member["MethodDeclarator"][0],module,decl_only)
+      return emit_method(member["MethodDeclarator"][0],module,pas)
    if "VariableDeclarators" in member:
       t = get_type(member["Type"][0])
-      return emit_static_decl(t,member["VariableDeclarators"][0]["VariableDeclarator"][0],module,decl_only)
+      return emit_static_decl(t,member["VariableDeclarators"][0]["VariableDeclarator"][0],module,pas)
    print json.dumps(member)
    assert(False)
 
-def emit_class(cls,module,decl_only):
+def emit_class(cls,module,pas):
    body = cls["ClassBody"][0]
    decls = body["ClassBodyDeclaration"]
    for decl in decls:
-      emit_member(decl["MemberDecl"][0],module,decl_only)
+      emit_member(decl["MemberDecl"][0],module,pas)
 
 def make_bytearray(buf):
     """
@@ -807,19 +823,32 @@ def emit_print_funcs(module):
     emit_print_func(module, "print_double", "%f", ir.DoubleType())
 
 module = None
-def emit_module(unit,decl_only):
+def emit_module(unit,pas):
    global module
+   global ctors
+   global funcs
    if module == None:
       module = ir.Module(name="main")
       module.triple = binding.get_default_triple()
 
-   if not decl_only:
+   if pas == "method_body":
        emit_print_funcs(module)
 
    for t in unit["TypeDeclaration"]:
       assert "ClassDeclaration" in t
-      emit_class(t["ClassDeclaration"][0],module,decl_only)
+      emit_class(t["ClassDeclaration"][0],module,pas)
 
-   if not decl_only:
+   if pas == "method_body":
+      typo = ir.FunctionType(ir.VoidType(), [])
+      func = ir.Function(module, typo, name="main")
+      func.attributes.add("noinline")
+      block = func.append_basic_block('entry')
+      builder = Builder(block)
+      for f in ctors:
+        builder.call(f,[])
+
+      builder.call(funcs["main_entry"]["func"],[])
+
+      builder.ret_void()
       print str(module).replace("s32","i32").replace("s16","i16").replace("s64","i64").replace("s8","i8")
 
