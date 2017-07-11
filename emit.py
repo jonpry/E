@@ -582,8 +582,13 @@ def explicit_cast(a,t,builder):
       return builder.zext(a,t)
 
    if tsigned:
-      return builder.tosigned(a,t)
-   return builder.tounsigned(a,t)
+      if afloat:
+         return builder.fptosi(a,t)
+      else:
+         return builder.tosigned(a)
+   if afloat:
+      return builder.fptoui(a,t)
+   return builder.tounsigned(a)
 
 
 def store(val,var,builder):
