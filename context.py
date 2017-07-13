@@ -1,16 +1,48 @@
 # -*- coding: utf-8 -*-
 import copy
+from llvmlite import ir
+from collections import OrderedDict
 
 context = {}
 cstack = []
 globs = {}
 
-def get(var):
+def set_type(t):
+   global class_type
+   class_type = t;
+
+def get_type():
+   global class_type
+   return class_type
+
+def get(var,this=None,builder=None):
    global context
    global globs
+   global class_members
    if var in context:
       return context[var]
-   return globs[var]
+   if var in globs:
+      return globs[var]
+   if this == None:
+      return None
+
+   if var in class_members:
+      i = class_members.keys().index(var)
+      v = builder.gep(this,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),i)])
+      return v
+
+class_members = OrderedDict()
+def create_member(t,name):
+   global class_members
+   assert(name not in class_members)
+   class_members[name] = t
+
+def get_member_types():
+   global class_members
+   t = []
+   for k,v in class_members.items():
+     t.append(v)
+   return t
 
 def create(var,v):
    global context

@@ -37,6 +37,7 @@ public final class EchoServer {
 
     public static int sFoo = 2;
     public static int sBar = 3;
+    public ulong mBar=4; 
 
     public static int func(int j) throws Exception {
         int i=100+j;

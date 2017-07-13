@@ -651,27 +651,39 @@ def store(val,var,builder):
    
    builder.store(val,var)
 
-ctors = []
-def emit_static_decl(t,st,module,pas):
-   global ctors
+static_ctors = []
+def emit_member_decl(t,static,st,module,pas):
+   global static_ctors
    ident = st["Identifier"][0]
    if pas == "decl_only":
-      data = ir.GlobalVariable(module,t,ident)
-      data.initializer = ir.Constant(t,0)
-      context.create_global(ident,data)
-      return data
+      if static:
+         data = ir.GlobalVariable(module,t,ident)
+         data.initializer = ir.Constant(t,0)
+         context.create_global(ident,data)
+         return data
+      else:
+         context.create_member(t,ident)
+
    if pas == "method_body":
-      typo = ir.FunctionType(ir.VoidType(), [], False)
+      if static:
+         typo = ir.FunctionType(ir.VoidType(), [], False)
+      else:
+         typo = ir.FunctionType(ir.VoidType(), [context.get_type().as_pointer()], False)
+
       func = ir.Function(module, typo, "init." + ident)
       func.attributes.add("noinline")
       block = func.append_basic_block('entry')
       builder = Builder(block)
 
       val = emit_expression(st["VariableInitializer"][0]["Expression"][0],builder)
-      var = context.get_global(ident)
+      if static:
+         var = context.get(ident)
+      else:
+         var = context.get(ident,func.args[0],builder)
       store(val,var,builder)
       builder.ret_void()
-      ctors.append(func)
+      if static:
+         static_ctors.append(func)
 
 def emit_local_decl(t,lv,builder):
    context.create(lv["Identifier"][0], builder.alloca(t))
@@ -684,22 +696,22 @@ def emit_local_decl(t,lv,builder):
 
 def get_type(t):
    assert("BasicType" in t)
-   if "int" in t["BasicType"][0]:
-     return SIntType(32)
    if "uint" in t["BasicType"][0]:
      return ir.IntType(32)
-   if "long" in t["BasicType"][0]:
-     return SIntType(64)
+   if "int" in t["BasicType"][0]:
+     return SIntType(32)
    if "ulong" in t["BasicType"][0]:
      return ir.IntType(64)
-   if "short" in t["BasicType"][0]:
-     return SIntType(16)
+   if "long" in t["BasicType"][0]:
+     return SIntType(64)
    if "ushort" in t["BasicType"][0]:
      return ir.IntType(16)
-   if "char" in t["BasicType"][0]:
-     return SIntType(8)
+   if "short" in t["BasicType"][0]:
+     return SIntType(16)
    if "uchar" in t["BasicType"][0]:
      return ir.IntType(8)
+   if "char" in t["BasicType"][0]:
+     return SIntType(8)
    if "float" in t["BasicType"][0]:
      return ir.FloatType()
    if "double" in t["BasicType"][0]:
@@ -764,11 +776,17 @@ def emit_method(method,module,pas):
    context.pop()
 
 def emit_member(member,module,pas):
+   static = False;
+   if "Modifier" in member:
+      mods = member["Modifier"]
+      if "static" in mods:
+         static = True;
+
    if "MethodDeclarator" in member:
       return emit_method(member["MethodDeclarator"][0],module,pas)
    if "VariableDeclarators" in member:
       t = get_type(member["Type"][0])
-      return emit_static_decl(t,member["VariableDeclarators"][0]["VariableDeclarator"][0],module,pas)
+      return emit_member_decl(t,static,member["VariableDeclarators"][0]["VariableDeclarator"][0],module,pas)
    print json.dumps(member)
    assert(False)
 
@@ -777,6 +795,12 @@ def emit_class(cls,module,pas):
    decls = body["ClassBodyDeclaration"]
    for decl in decls:
       emit_member(decl["MemberDecl"][0],module,pas)
+
+   if pas == "decl_only":
+      t = module.context.get_identified_type("this")
+      types = context.get_member_types()
+      t.set_body(*types)
+      context.set_type(t)
 
 def make_bytearray(buf):
     """
@@ -830,7 +854,7 @@ def emit_print_funcs(module):
 module = None
 def emit_module(unit,pas):
    global module
-   global ctors
+   global static_ctors
    global funcs
    if module == None:
       module = ir.Module(name="main")
@@ -849,7 +873,7 @@ def emit_module(unit,pas):
       func.attributes.add("noinline")
       block = func.append_basic_block('entry')
       builder = Builder(block)
-      for f in ctors:
+      for f in static_ctors:
         builder.call(f,[])
 
       builder.call(funcs["main_entry"]["func"],[])
