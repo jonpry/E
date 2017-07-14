@@ -278,11 +278,7 @@ LocalVariableDeclarationStatement
     ;
 
 VariableDeclarators
-    = VariableDeclarator CommaVariableDeclarator*
-    ;
-
-CommaVariableDeclarator
-    = COMMA VariableDeclarator
+    = VariableDeclarator (COMMA VariableDeclarator)*
     ;
 
 VariableDeclarator

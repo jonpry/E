@@ -665,6 +665,9 @@ def emit_member_decl(t,static,st,module,pas):
          context.create_member(t,ident)
 
    if pas == "method_body":
+      if "VariableInitializer" not in st:
+          return
+
       if static:
          typo = ir.FunctionType(ir.VoidType(), [], False)
       else:
@@ -785,7 +788,10 @@ def emit_member(member,module,pas):
       return emit_method(member["MethodDeclarator"][0],module,pas)
    if "VariableDeclarators" in member:
       t = get_type(member["Type"][0])
-      return emit_member_decl(t,static,member["VariableDeclarators"][0]["VariableDeclarator"][0],module,pas)
+      l = member["VariableDeclarators"][0]["VariableDeclarator"]
+      for e in l:
+         emit_member_decl(t,static,e,module,pas)
+      return
    print json.dumps(member)
    assert(False)
 

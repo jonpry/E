@@ -15,30 +15,18 @@
  */
 package life.stel.e.test;
 
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.util.SelfSignedCertificate;
+import life.stel.e.another;
 
 /**
- * Echoes back any received data from a client.
+ * A multiline comment
  */
+
 public final class TestClass {
 
     public static int sFoo = 2;
     public static int sBar = 3;
     public ulong mBar=4; 
-    public uint mFoo=5;
+    public uint mFoo=5,mBah,mBam=6;
 
     public static int func(int j) throws Exception {
         int i=100+j;
