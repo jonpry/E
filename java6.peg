@@ -388,15 +388,11 @@ SwitchLabel
 
 ForInit
     = FinalOrAnnotation* Type VariableDeclarators
-    / StatementExpression CommaStatementExpression*
-    ;
-
-CommaStatementExpression
-    = COMMA StatementExpression
+    / StatementExpression (COMMA StatementExpression)*
     ;
 
 ForUpdate
-    = StatementExpression CommaStatementExpression*
+    = StatementExpression (COMMA StatementExpression)*
     ;
 
 EnumConstantName

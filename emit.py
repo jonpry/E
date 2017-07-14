@@ -651,6 +651,7 @@ def store(val,var,builder):
    builder.store(val,var)
 
 static_ctors = []
+ctors = []
 def emit_member_decl(t,static,st,module,pas):
    global static_ctors
    ident = st["Identifier"][0]
@@ -674,9 +675,12 @@ def emit_member_decl(t,static,st,module,pas):
          typo = ir.FunctionType(ir.VoidType(), [context.get_type().as_pointer()], False)
 
       func = ir.Function(module, typo, context.fqid() + "." + ident + ".init")
-      func.attributes.add("noinline")
+      func.attributes.add("alwaysinline")
+      func.linkage = "internal"	
       block = func.append_basic_block('entry')
       builder = Builder(block)
+      context.push(False)
+
 
       val = emit_expression(st["VariableInitializer"][0]["Expression"][0],builder)
       if static:
@@ -685,8 +689,11 @@ def emit_member_decl(t,static,st,module,pas):
          var = context.get(ident,func.args[0],builder)
       store(val,var,builder)
       builder.ret_void()
+      context.pop()
       if static:
          static_ctors.append(func)
+      else:
+         ctors.append(func)
 
 def emit_local_decl(t,lv,builder):
    context.create(lv["Identifier"][0], builder.alloca(t))
@@ -725,7 +732,9 @@ def get_type(t):
 
 def emit_local_variable_decl(lv,builder):
    t = get_type(lv["Type"][0])
-   return emit_local_decl(t,lv["VariableDeclarators"][0]["VariableDeclarator"][0],builder)
+   l = lv["VariableDeclarators"][0]["VariableDeclarator"]
+   for e in l:
+      emit_local_decl(t,e,builder)
 
 def emit_blockstatement(bs,builder):
    if "Statement" in bs:
@@ -814,6 +823,16 @@ def emit_class(cls,module,pas):
       types = context.get_member_types()
       t.set_body(*types)
       context.set_type(t,ident)
+   else:
+      typo = ir.FunctionType(ir.VoidType(), [context.get_type().as_pointer()], False)
+
+      func = ir.Function(module, typo, context.fqid() + ".init")
+      func.attributes.add("noinline")
+      block = func.append_basic_block('entry')
+      builder = Builder(block)
+      for f in ctors:
+        builder.call(f,[func.args[0]])
+      builder.ret_void()
 
 def make_bytearray(buf):
     """

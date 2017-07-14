@@ -28,6 +28,13 @@ public final class TestClass {
     public ulong mBar=4; 
     public uint mFoo=5,mBah,mBam=6;
 
+    //This is a test of initializer blocks
+/*
+    {
+       int x=0;
+       mBah = x;
+    }
+*/
     public static int func(int j) throws Exception {
         int i=100+j;
         return i;
@@ -97,7 +104,7 @@ public final class TestClass {
     }
 
     public static void if_test(boolean c) throws Exception {
-        int i=0;
+        int i=0,k,l=1;
         int j=0;
         if(c){
             i=1;
@@ -110,6 +117,7 @@ public final class TestClass {
 
         print_int(i);
         print_int(j);
+        print_int(l);
     }
 
     public static void for_test(int k) throws Exception {
