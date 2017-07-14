@@ -306,12 +306,8 @@ FinalOrAnnotation
     ;
 
 FormalParameterList
-    = FormalParameter CommaFormalParamater* (COMMA LastFormalParameter)?
+    = FormalParameter (COMMA FormalParameter)* (COMMA LastFormalParameter)?
     / LastFormalParameter
-    ;
-
-CommaFormalParamater
-    = COMMA FormalParameter
     ;
 
 VariableDeclaratorId

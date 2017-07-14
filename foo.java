@@ -123,6 +123,11 @@ public final class TestClass {
         print_int(j);
     }
 
+    public static void multiple_parm_test(int i, int j){
+        int f = i + j;
+        print_int(f);
+    }
+
     public static int main() throws Exception {
         constant_int_test();
         constant_float_test();
@@ -130,6 +135,7 @@ public final class TestClass {
         block_test();
         if_test(true);
         for_test(10);
+        multiple_parm_test(1,2);
 
         float r=1;
         r += 1;

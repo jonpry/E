@@ -746,9 +746,10 @@ def emit_method(method,module,pas):
       fps = method["FormalParameters"][0]
       types = []
       names = []
+      
       if "FormalParameterList" in fps:
-        for fp in fps["FormalParameterList"]:
-           fp = fp["FormalParameter"][0]
+        fps = fps["FormalParameterList"][0]["FormalParameter"]
+        for fp in fps:
            t = get_type(fp["Type"][0])
            types.append(t)
            names.append(fp["VariableDeclaratorId"][0]["Identifier"][0])
