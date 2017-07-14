@@ -135,7 +135,7 @@ public final class TestClass {
         print_int(j);
     }
 
-    public static int main_entry() throws Exception {
+    public static int main() throws Exception {
         constant_int_test();
         constant_float_test();
         bool_interp_test();

@@ -6,7 +6,19 @@ from collections import OrderedDict
 context = {}
 cstack = []
 globs = {}
+funcs = {}
 package = ""
+
+def create_func(name,d):
+   global funcs
+   assert(name not in funcs)
+   funcs[name] = d;
+
+def get_func(name):
+   global funcs
+   if name in funcs:
+      return funcs[name]
+   return funcs[fqid() + "." + name]
 
 def set_package(p):
    global package
@@ -37,10 +49,11 @@ def get(var,this=None,builder=None):
    global context
    global globs
    global class_members
+   fq = fqid() + "." + var
    if var in context:
       return context[var]
-   if var in globs:
-      return globs[var]
+   if fq in globs:
+      return globs[fq]
    if this == None:
       return None
 
@@ -86,7 +99,7 @@ def create_global(name,val):
 
 def get_global(name):
    global globs;
-   return globs[name]
+   return globs[fqid() + "." + name]
 
 def pop():
    global context

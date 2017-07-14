@@ -87,7 +87,6 @@ def is_pointer(var):
    return len(str(var.type).split("*")) > 1
 
 def emit_primary(p,builder):
-   global funcs
    if "Literal" in p:
       return emit_literal(p["Literal"][0],builder)
    if "QualifiedIdentifier" in p:
@@ -97,7 +96,7 @@ def emit_primary(p,builder):
          if "Arguments" in suf:
            a = suf["Arguments"][0]
            args = []
-           func = funcs[var]["func"]
+           func = context.get_func(var)["func"]
            if "Expression" in a:
               for i in range(len(a["Expression"])):
                  e = a["Expression"][i]
@@ -657,6 +656,7 @@ def emit_member_decl(t,static,st,module,pas):
    ident = st["Identifier"][0]
    if pas == "decl_only":
       if static:
+         ident = context.fqid() + "." + ident
          data = ir.GlobalVariable(module,t,ident)
          data.initializer = ir.Constant(t,0)
          context.create_global(ident,data)
@@ -670,7 +670,7 @@ def emit_member_decl(t,static,st,module,pas):
       else:
          typo = ir.FunctionType(ir.VoidType(), [context.get_type().as_pointer()], False)
 
-      func = ir.Function(module, typo, "init." + ident)
+      func = ir.Function(module, typo, context.fqid() + "." + ident + ".init")
       func.attributes.add("noinline")
       block = func.append_basic_block('entry')
       builder = Builder(block)
@@ -731,9 +731,7 @@ def emit_blockstatement(bs,builder):
      return emit_local_variable_decl(bs["LocalVariableDeclarationStatement"][0],builder)
    assert(False)
 
-funcs = {}
 def emit_method(method,module,pas):
-   global funcs
    name = method["Identifier"][0]
 
    if pas == "decl_only":
@@ -752,17 +750,18 @@ def emit_method(method,module,pas):
            types.append(t)
            names.append(fp["VariableDeclaratorId"][0]["Identifier"][0])
 
+      name = context.fqid() + "." + name
       typo = ir.FunctionType(rtype, types, False)
       func = ir.Function(module, typo, name)
       func.attributes.add("noinline")
-      funcs[name] = {"func" : func, "names" : names, "ret" : rtype}
+      context.create_func(name,{"func" : func, "names" : names, "ret" : rtype})
       return
 
-   func = funcs[name]["func"]
+   func = context.get_func(name)["func"]
    context.push(True)
    for i in range(len(func.args)):
      arg = func.args[i]
-     context.create(funcs[name]["names"][i], arg)
+     context.create(context.get_func(name)["names"][i], arg)
 
    block = func.append_basic_block('entry')
    builder = Builder(block)
@@ -771,7 +770,7 @@ def emit_method(method,module,pas):
    for bs in methodbody["BlockStatements"][0]["BlockStatement"]:
       emit_blockstatement(bs,builder)
 
-   if funcs[name]["ret"] == ir.VoidType():
+   if context.get_func(name)["ret"] == ir.VoidType():
       builder.ret_void()
    context.pop()
 
@@ -795,12 +794,15 @@ def emit_class(cls,module,pas):
    decls = body["ClassBodyDeclaration"]
    ident = cls["Identifier"][0]
    context.push_class(ident)
+
+   if pas == "decl_only":
+      context.set_type(None,ident)
+
    for decl in decls:
       emit_member(decl["MemberDecl"][0],module,pas)
    context.pop_class()
 
    if pas == "decl_only":
-      context.set_type(None,ident)
       t = module.context.get_identified_type(context.fqid())
       types = context.get_member_types()
       t.set_body(*types)
@@ -824,14 +826,13 @@ def global_constant(module, name, value):
     return data
 
 def emit_print_func(module,name,fmt,typo):
-    global funcs
     fnty = ir.FunctionType(ir.VoidType(), [typo])
     func = ir.Function(module, fnty, name=name)
     func.attributes.add("noinline")
     block = func.append_basic_block('entry')
     builder = Builder(block)
-    funcs[name] = {"func" : func, "names" : ["v"], "ret" : ir.VoidType()}
-    pfn = funcs["printf"]["func"]
+    context.create_func(name,{"func" : func, "names" : ["v"], "ret" : ir.VoidType()})
+    pfn = context.get_func("printf")["func"]
 
     #create global for string
     fmt_bytes = make_bytearray((fmt + '\n\00').encode('ascii'))
@@ -843,10 +844,9 @@ def emit_print_func(module,name,fmt,typo):
 
 
 def emit_print_funcs(module):
-    global funcs
     fnty = ir.FunctionType(ir.IntType(32), [ir.IntType(8).as_pointer()], var_arg=True)
     fn = ir.Function(module, fnty, name="printf")
-    funcs["printf"] = {"func" : fn, "names" : [], "ret" : ir.IntType(32)}
+    context.create_func("printf",{"func" : fn, "names" : [], "ret" : ir.IntType(32)})
 
     emit_print_func(module, "print_uint", "%u", ir.IntType(32))
     emit_print_func(module, "print_ulong", "%ul", ir.IntType(64))
@@ -859,7 +859,6 @@ module = None
 def emit_module(unit,pas):
    global module
    global static_ctors
-   global funcs
    if module == None:
       module = ir.Module(name="main")
       module.triple = binding.get_default_triple()
@@ -882,7 +881,7 @@ def emit_module(unit,pas):
       for f in static_ctors:
         builder.call(f,[])
 
-      builder.call(funcs["main_entry"]["func"],[])
+      builder.call(context.get_func("main")["func"],[])
 
       builder.ret_void()
       print str(module).replace("s32","i32").replace("s16","i16").replace("s64","i64").replace("s8","i8")
