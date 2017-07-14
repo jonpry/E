@@ -793,14 +793,18 @@ def emit_member(member,module,pas):
 def emit_class(cls,module,pas):
    body = cls["ClassBody"][0]
    decls = body["ClassBodyDeclaration"]
+   ident = cls["Identifier"][0]
+   context.push_class(ident)
    for decl in decls:
       emit_member(decl["MemberDecl"][0],module,pas)
+   context.pop_class()
 
    if pas == "decl_only":
-      t = module.context.get_identified_type("this")
+      context.set_type(None,ident)
+      t = module.context.get_identified_type(context.fqid())
       types = context.get_member_types()
       t.set_body(*types)
-      context.set_type(t)
+      context.set_type(t,ident)
 
 def make_bytearray(buf):
     """
@@ -859,6 +863,8 @@ def emit_module(unit,pas):
    if module == None:
       module = ir.Module(name="main")
       module.triple = binding.get_default_triple()
+      if "PackageDeclaration" in unit:
+          context.set_package(unit["PackageDeclaration"][0]["QualifiedIdentifier"][0])
 
    if pas == "method_body":
        emit_print_funcs(module)

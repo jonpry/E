@@ -6,10 +6,28 @@ from collections import OrderedDict
 context = {}
 cstack = []
 globs = {}
+package = ""
 
-def set_type(t):
+def set_package(p):
+   global package
+   package = p
+
+def set_type(t,name):
    global class_type
+   global class_name
    class_type = t;
+   class_name = name;
+
+def fqid():
+   global package
+   global class_name
+   return package + "." + class_name
+
+def push_class(name):
+   pass
+
+def pop_class():
+   pass
 
 def get_type():
    global class_type

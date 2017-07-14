@@ -1,5 +1,5 @@
 /*
-  Copyright 2012 The Netty Project
+  Copyright 2017 The E Project
  *
  * The Netty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package io.netty.example.echo;
+package life.stel.e.test;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
@@ -33,11 +33,12 @@ import io.netty.handler.ssl.util.SelfSignedCertificate;
 /**
  * Echoes back any received data from a client.
  */
-public final class EchoServer {
+public final class TestClass {
 
     public static int sFoo = 2;
     public static int sBar = 3;
     public ulong mBar=4; 
+    public uint mFoo=5;
 
     public static int func(int j) throws Exception {
         int i=100+j;
