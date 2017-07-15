@@ -106,9 +106,9 @@ def emit_primary(p,builder):
                  args.append(e)
            return builder.call(func,args)
       else:
-         if is_pointer(context.get(var)):
-            return builder.load(context.get(var))
-         return context.get(var)
+         if is_pointer(context.get(var,builder)):
+            return builder.load(context.get(var,builder))
+         return context.get(var,builder)
    if "ParExpression" in p:
       v= emit_expression(p["ParExpression"][0]["Expression"][0],builder)
       return v
@@ -323,9 +323,9 @@ def emit_expression(se, builder):
          var = se["LeftHandSide"][i]["QualifiedIdentifier"][0]
          op = se["AssignmentOperator"][i]
          if "EQU" in op:
-            store(v,context.get(var),builder)
+            store(v,context.get(var,builder),builder)
             continue
-         cv = builder.load(context.get(var))
+         cv = builder.load(context.get(var,builder))
          v,cv,signed,flo = auto_cast(v,cv,builder)
          if "PLUSEQU" in op:
             if flo:
@@ -380,7 +380,7 @@ def emit_expression(se, builder):
          else:
             assert(False)
 
-         store(v,context.get(var),builder)
+         store(v,context.get(var,builder),builder)
 
 
    assert v!=None
@@ -653,7 +653,8 @@ def store(val,var,builder):
 static_ctors = []
 ctors = []
 def emit_member_decl(t,static,st,module,pas):
-   global static_ctors
+   global static_init
+   global init
    ident = st["Identifier"][0]
    if pas == "decl_only":
       if static:
@@ -670,37 +671,26 @@ def emit_member_decl(t,static,st,module,pas):
           return
 
       if static:
-         typo = ir.FunctionType(ir.VoidType(), [], False)
+         builder = static_init
       else:
-         typo = ir.FunctionType(ir.VoidType(), [context.get_type().as_pointer()], False)
+         builder = init
+         context.push_this(init.function.args[0])
 
-      func = ir.Function(module, typo, context.fqid() + "." + ident + ".init")
-      func.attributes.add("alwaysinline")
-      func.linkage = "internal"	
-      block = func.append_basic_block('entry')
-      builder = Builder(block)
       context.push(False)
 
-
       val = emit_expression(st["VariableInitializer"][0]["Expression"][0],builder)
-      if static:
-         var = context.get(ident)
-      else:
-         var = context.get(ident,func.args[0],builder)
+      var = context.get(ident,builder)
       store(val,var,builder)
-      builder.ret_void()
       context.pop()
-      if static:
-         static_ctors.append(func)
-      else:
-         ctors.append(func)
+      if not static:
+         context.pop_this()
 
 def emit_local_decl(t,lv,builder):
    context.create(lv["Identifier"][0], builder.alloca(t))
 
    if "VariableInitializer" in lv:
       val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],builder)
-      var = context.get(lv["Identifier"][0])
+      var = context.get(lv["Identifier"][0],builder)
       store(val,var,builder)
 
 
@@ -806,6 +796,10 @@ def emit_member(member,module,pas):
    assert(False)
 
 def emit_class(cls,module,pas):
+   global init
+   global static_init
+   global static_ctors
+
    body = cls["ClassBody"][0]
    decls = body["ClassBodyDeclaration"]
    ident = cls["Identifier"][0]
@@ -814,8 +808,39 @@ def emit_class(cls,module,pas):
    if pas == "decl_only":
       context.set_type(None,ident)
 
+   if pas == "method_body":
+      typo = ir.FunctionType(ir.VoidType(), [context.get_type().as_pointer()], False)
+      func = ir.Function(module, typo, context.fqid() + ".init")
+      func.attributes.add("noinline")
+      block = func.append_basic_block('entry')
+      init = Builder(block)
+
+      typo = ir.FunctionType(ir.VoidType(), [], False)
+      func = ir.Function(module, typo, context.fqid() + ".static.init")
+      func.attributes.add("noinline")
+      block = func.append_basic_block('entry')
+      static_init = Builder(block)
+      static_ctors.append(func)
+
    for decl in decls:
-      emit_member(decl["MemberDecl"][0],module,pas)
+      static = "STATIC" in decl
+
+      if "MemberDecl" in decl:
+         emit_member(decl["MemberDecl"][0],module,pas)
+      elif "Block" in decl:
+         if pas == "method_body":
+             builder = static_init if static else init
+             context.push(False)
+             if not static:
+                context.push_this(init.function.args[0])
+             block = decl["Block"][0]
+             for bs in block["BlockStatements"][0]["BlockStatement"]:
+                emit_blockstatement(bs,builder)
+             if not static:
+                context.pop_this()
+             context.pop()
+      else:
+        assert(False)
    context.pop_class()
 
    if pas == "decl_only":
@@ -823,16 +848,9 @@ def emit_class(cls,module,pas):
       types = context.get_member_types()
       t.set_body(*types)
       context.set_type(t,ident)
-   else:
-      typo = ir.FunctionType(ir.VoidType(), [context.get_type().as_pointer()], False)
-
-      func = ir.Function(module, typo, context.fqid() + ".init")
-      func.attributes.add("noinline")
-      block = func.append_basic_block('entry')
-      builder = Builder(block)
-      for f in ctors:
-        builder.call(f,[func.args[0]])
-      builder.ret_void()
+   if pas == "method_body":
+      init.ret_void()
+      static_init.ret_void()
 
 def make_bytearray(buf):
     """

@@ -45,18 +45,21 @@ def get_type():
    global class_type
    return class_type
 
-def get(var,this=None,builder=None):
+def get(var,builder=None):
    global context
    global globs
    global class_members
+   global thiss
+
    fq = fqid() + "." + var
    if var in context:
       return context[var]
    if fq in globs:
       return globs[fq]
-   if this == None:
+   if len(thiss) == 0 or thiss[-1] == None:
       return None
 
+   this = thiss[-1]
    if var in class_members:
       i = class_members.keys().index(var)
       v = builder.gep(this,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),i)])
@@ -91,6 +94,15 @@ def push(deep):
       cstack.append(copy.deepcopy(context))
    else:
       cstack.append(context.copy())
+
+thiss = []
+def push_this(this):
+   global thiss
+   thiss.append(this)
+
+def pop_this():
+   global thiss
+   thiss.pop()
 
 def create_global(name,val):
    global globs;

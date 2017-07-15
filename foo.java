@@ -29,12 +29,16 @@ public final class TestClass {
     public uint mFoo=5,mBah,mBam=6;
 
     //This is a test of initializer blocks
-/*
     {
        int x=0;
-       mBah = x;
+       mBar = x;
     }
-*/
+
+    static {
+       int x=0;
+       sBar = x;
+    }
+
     public static int func(int j) throws Exception {
         int i=100+j;
         return i;
