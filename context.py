@@ -7,7 +7,20 @@ context = {}
 cstack = []
 globs = {}
 funcs = {}
+func_stack = []
 package = ""
+
+def push_func(func):
+   global func_stack
+   func_stack.append(func)
+
+def pop_func():
+   global func_stack
+   func_stack.pop()
+
+def current_func():
+   global func_stack
+   return func_stack[-1]
 
 def create_func(name,d):
    global funcs

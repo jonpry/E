@@ -97,10 +97,14 @@ def emit_primary(p,builder):
            a = suf["Arguments"][0]
            args = []
            func = context.get_func(var)["func"]
+           static =  context.get_func(var)["static"]
+           if not static:
+              assert(not context.current_func()["static"])
+              args.append(builder.function.args[0]) #todo: check caller is not static
            if "Expression" in a:
               for i in range(len(a["Expression"])):
                  e = a["Expression"][i]
-                 t = func.args[i]
+                 t = func.args[i if static else i+1]
                  e = emit_expression(e,builder)
                  e,foo,signed,flo = auto_cast(e,t,builder,single=True,force_sign=str(t)[0])
                  args.append(e)
@@ -764,11 +768,12 @@ def emit_method(method,static,module,pas):
       typo = ir.FunctionType(rtype, types, False)
       func = ir.Function(module, typo, name)
       func.attributes.add("noinline")
-      context.create_func(name,{"func" : func, "names" : names, "ret" : rtype})
+      context.create_func(name,{"func" : func, "names" : names, "ret" : rtype, "static" : static})
       return
 
    func = context.get_func(name)["func"]
    context.push(True)
+   context.push_func(context.get_func(name))
    for i in range(len(func.args)):
      arg = func.args[i]
      context.create(context.get_func(name)["names"][i], arg)
@@ -782,6 +787,8 @@ def emit_method(method,static,module,pas):
 
    if context.get_func(name)["ret"] == ir.VoidType():
       builder.ret_void()
+
+   context.pop_func()
    context.pop()
 
 def emit_member(member,module,pas):
@@ -882,7 +889,7 @@ def emit_print_func(module,name,fmt,typo):
     func.attributes.add("noinline")
     block = func.append_basic_block('entry')
     builder = Builder(block)
-    context.create_func(name,{"func" : func, "names" : ["v"], "ret" : ir.VoidType()})
+    context.create_func(name,{"func" : func, "names" : ["v"], "ret" : ir.VoidType(), "static" : True})
     pfn = context.get_func("printf")["func"]
 
     #create global for string
@@ -897,7 +904,7 @@ def emit_print_func(module,name,fmt,typo):
 def emit_print_funcs(module):
     fnty = ir.FunctionType(ir.IntType(32), [ir.IntType(8).as_pointer()], var_arg=True)
     fn = ir.Function(module, fnty, name="printf")
-    context.create_func("printf",{"func" : fn, "names" : [], "ret" : ir.IntType(32)})
+    context.create_func("printf",{"func" : fn, "names" : [], "ret" : ir.IntType(32), "static" : True})
 
     emit_print_func(module, "print_uint", "%u", ir.IntType(32))
     emit_print_func(module, "print_ulong", "%ul", ir.IntType(64))

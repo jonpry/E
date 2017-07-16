@@ -39,8 +39,12 @@ public final class TestClass {
        sBar = x;
     }
 
-    public int member(int j) throws Exception {
+    public int member2(int j) throws Exception {
         return j;
+    }
+
+    public int member(int j) throws Exception {
+        return member2(j);
     }
 
     public static int func(int j) throws Exception {
