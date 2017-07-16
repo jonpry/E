@@ -656,7 +656,7 @@ def emit_member_decl(t,static,st,module,pas):
    global static_init
    global init
    ident = st["Identifier"][0]
-   if pas == "decl_only":
+   if pas == "decl_type":
       if static:
          ident = context.fqid() + "." + ident
          data = ir.GlobalVariable(module,t,ident)
@@ -733,10 +733,13 @@ def emit_blockstatement(bs,builder):
      return emit_local_variable_decl(bs["LocalVariableDeclarationStatement"][0],builder)
    assert(False)
 
-def emit_method(method,module,pas):
+def emit_method(method,static,module,pas):
    name = method["Identifier"][0]
 
-   if pas == "decl_only":
+   if pas == "decl_type":
+      return
+
+   if pas == "decl_methods":
       tv = method["TypeOrVoid"][0]
       if "Type" in tv:
         rtype = get_type(tv["Type"][0])
@@ -745,6 +748,10 @@ def emit_method(method,module,pas):
       fps = method["FormalParameters"][0]
       types = []
       names = []
+
+      if not static:
+         types.append(context.get_type())
+         names.append("this")
       
       if "FormalParameterList" in fps:
         fps = fps["FormalParameterList"][0]["FormalParameter"]
@@ -785,7 +792,7 @@ def emit_member(member,module,pas):
          static = True;
 
    if "MethodDeclarator" in member:
-      return emit_method(member["MethodDeclarator"][0],module,pas)
+      return emit_method(member["MethodDeclarator"][0],static,module,pas)
    if "VariableDeclarators" in member:
       t = get_type(member["Type"][0])
       l = member["VariableDeclarators"][0]["VariableDeclarator"]
@@ -805,7 +812,7 @@ def emit_class(cls,module,pas):
    ident = cls["Identifier"][0]
    context.push_class(ident)
 
-   if pas == "decl_only":
+   if pas == "decl_type":
       context.set_type(None,ident)
 
    if pas == "method_body":
@@ -843,7 +850,7 @@ def emit_class(cls,module,pas):
         assert(False)
    context.pop_class()
 
-   if pas == "decl_only":
+   if pas == "decl_type":
       t = module.context.get_identified_type(context.fqid())
       types = context.get_member_types()
       t.set_body(*types)
@@ -909,7 +916,7 @@ def emit_module(unit,pas):
       if "PackageDeclaration" in unit:
           context.set_package(unit["PackageDeclaration"][0]["QualifiedIdentifier"][0])
 
-   if pas == "method_body":
+   if pas == "decl_methods":
        emit_print_funcs(module)
 
    for t in unit["TypeDeclaration"]:

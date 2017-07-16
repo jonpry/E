@@ -39,6 +39,10 @@ public final class TestClass {
        sBar = x;
     }
 
+    public int member(int j) throws Exception {
+        return j;
+    }
+
     public static int func(int j) throws Exception {
         int i=100+j;
         return i;

@@ -282,9 +282,15 @@ def main():
     
     '''Second pass, lowering'''
 
+    #print "decl_only"
     '''Third pass, emit declarations'''
-    emit.emit_module(parse_tree["CompilationUnit"][0],"decl_only")
+    emit.emit_module(parse_tree["CompilationUnit"][0],"decl_type")
 
+    #print "decl_methods"
+    '''Third pass, emit declarations'''
+    emit.emit_module(parse_tree["CompilationUnit"][0],"decl_methods")
+
+    #print "method_body"
     '''Fourth pass, emit definitions'''
     emit.emit_module(parse_tree["CompilationUnit"][0],"method_body")
 
