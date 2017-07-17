@@ -21,6 +21,12 @@ import life.stel.e.another;
  * A multiline comment
  */
 
+public final class ClassB {
+    public static int sFoo = 2;
+    public static int sBar = 3;
+    public ulong mBar=4; 
+}
+
 public final class TestClass {
 
     public static int sFoo = 2;

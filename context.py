@@ -38,30 +38,52 @@ def set_package(p):
    package = p
 
 def set_type(t,name):
-   global class_type
-   global class_name
-   class_type = t;
-   class_name = name;
+   global clz
+   clz['class_type'] = t;
+   clz['class_name'] = name;
 
 def fqid():
    global package
-   global class_name
-   return package + "." + class_name
+   global clz
+   return package + "." + clz['class_name']
+
+def new_class():
+   return {'class_members' : {}, 'class_type' : None, 'class_name' : ''}
+
+clz = {'class_members' : {}}
+class_stack = [{}]
+class_pos = 0
 
 def push_class(name):
-   pass
+   global clz
+   global class_stack
+   global class_pos
+   class_pos += 1
+   if class_pos >= len(class_stack):
+      clz = new_class()
+      class_stack.append({name : clz})
+      return
+   if name in class_stack[class_pos]: 
+      clz = class_stack[class_pos][name]
+      return
+   clz = new_class()
+   class_stack[class_pos][name] = clz
+
 
 def pop_class():
-   pass
+   global clz
+   global class_pos
+   clz = new_class() #TODO
+   class_pos-=1
 
 def get_type():
-   global class_type
-   return class_type
+   global clz
+   return clz['class_type']
 
 def get(var,builder=None):
    global context
    global globs
-   global class_members
+   global clz
    global thiss
 
    fq = fqid() + "." + var
@@ -73,21 +95,20 @@ def get(var,builder=None):
       return None
 
    this = thiss[-1]
-   if var in class_members:
-      i = class_members.keys().index(var)
+   if var in clz['class_members']:
+      i = clz['class_members'].keys().index(var)
       v = builder.gep(this,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),i)])
       return v
 
-class_members = OrderedDict()
 def create_member(t,name):
-   global class_members
-   assert(name not in class_members)
-   class_members[name] = t
+   global clz
+   assert(name not in clz['class_members'])
+   clz['class_members'][name] = t
 
 def get_member_types():
-   global class_members
+   global clz
    t = []
-   for k,v in class_members.items():
+   for k,v in clz['class_members'].items():
      t.append(v)
    return t
 

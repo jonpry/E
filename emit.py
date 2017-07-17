@@ -855,7 +855,6 @@ def emit_class(cls,module,pas):
              context.pop()
       else:
         assert(False)
-   context.pop_class()
 
    if pas == "decl_type":
       t = module.context.get_identified_type(context.fqid())
@@ -865,6 +864,8 @@ def emit_class(cls,module,pas):
    if pas == "method_body":
       init.ret_void()
       static_init.ret_void()
+
+   context.pop_class()
 
 def make_bytearray(buf):
     """
@@ -939,7 +940,7 @@ def emit_module(unit,pas):
       for f in static_ctors:
         builder.call(f,[])
 
-      builder.call(context.get_func("main")["func"],[])
+      builder.call(context.get_func("life.stel.e.test.TestClass.main")["func"],[])
 
       builder.ret_void()
       print str(module).replace("s32","i32").replace("s16","i16").replace("s64","i64").replace("s8","i8")
