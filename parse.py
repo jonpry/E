@@ -1,7 +1,9 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
 import codecs
 import json
+import sys
 from collections import OrderedDict
 from sets import Set
 from arpeggio import *
@@ -262,7 +264,7 @@ def pretty_print(tree):
    print json.dumps(tree,indent=1)
 
 
-def main():
+def main(args):
     '''First pass, condensation'''
     rules = [(u"Spacing",			delete_node),
              (u"SEMI",				delete_node),
@@ -271,7 +273,7 @@ def main():
              (u"StrMatch",			reparent_node),
              (u"QualifiedIdentifier",		assemble_qi)]
 
-    parse_tree = parse_file("foo.java");
+    parse_tree = parse_file(args[0]);
 
     #pretty_print(parse_tree)
 
@@ -294,5 +296,5 @@ def main():
     '''Fourth pass, emit definitions'''
     emit.emit_module(parse_tree["CompilationUnit"][0],"method_body")
 
-main()
-
+if __name__ == "__main__":
+   main(sys.argv[1:])
