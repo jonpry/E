@@ -488,7 +488,8 @@ def emit_statement(s,builder):
        then_set = [k[0] for k in context.different_in(old_context,then_context)]
        else_set = [k[0] for k in context.different_in(old_context,else_context)]
        union = then_set[:]
-       union.append(*else_set)
+       if len(else_set) > 0:
+          union.append(*else_set)
        union = list(set(union))
        for k in union:
           phi = builder.phi(old_context[k].type)
