@@ -131,15 +131,26 @@ def items():
    global context
    return context.items()
 
-def push(deep):
+def push(deep,force=None):
    #print "push"
    global context
    global cstack
-   if deep:
+   if force != None:
+      ret = force.copy()
+      context=force.copy()
+   elif deep:
       ret = copy.deepcopy(context)
    else:
       ret = context.copy()
    cstack.append(ret)
+   return ret.copy()
+
+def different_in(a,b):
+   ret = []
+   for k,v in a.items():
+      if k in b:
+        if v != b[k]:
+          ret.append( (k,v,b[k]) )
    return ret
 
 def pop():
@@ -151,10 +162,9 @@ def pop():
    context = cstack.pop().copy()
 
    #pop can only clear variables from scope, not change meaning
-   for k,v in context.items():
-      if k in ret:
-        context[k] = ret[k]
-   return context
+   for k,v, nv in different_in(context,ret):
+      context[k] = nv
+   return context.copy()
 
 thiss = []
 def push_this(this):

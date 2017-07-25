@@ -126,6 +126,7 @@ public final class TestClass {
         int j=0;
         if(c){
             i=1;
+            l=3;
         }else{
             i=2;
         }
