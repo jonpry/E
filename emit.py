@@ -469,56 +469,39 @@ def emit_statement(s,builder):
        c = explicit_cast(c,ir.IntType(1),builder)
        st_then = s["Statement"][0]
 
-       if len(s["Statement"]) > 1:
-          st_otherwise = s["Statement"][1]
-          old_context = context.push(False)
-          old_block = builder.block
+       old_context = context.push(False)
+       old_block = builder.block
 
-          with builder.if_else(c) as (then, otherwise):
-             with then:
-                emit_statement(st_then,builder)
-                then_context = context.pop()
-                context.push(False,old_context)
-                then_block = builder.block
-             with otherwise:
-                emit_statement(st_otherwise,builder)
-                else_context = context.pop()
-                else_block = builder.block
-          exit_block = builder.block
-          then_set = [k[0] for k in context.different_in(old_context,then_context)]
-          else_set = [k[0] for k in context.different_in(old_context,else_context)]
-          union = then_set[:]
-          union.append(*else_set)
-          union = list(set(union))
-          for k in union:
-             phi = builder.phi(old_context[k].type)
-             if k in then_set:
-                phi.add_incoming(then_context[k],then_block)
-             else:
-                phi.add_incoming(old_context[k],then_block)
-             if k in else_set:
-                phi.add_incoming(else_context[k],else_block)
-             else:
-                phi.add_incoming(old_context[k],else_block)
-             context.set(k,phi)
-
-       else:
-          #print "ss"
-
-          old_context = context.push(False)
-          old_block = builder.block
-          with builder.if_then(c) as then:
+       with builder.if_else(c) as (then, otherwise):
+          with then:
              emit_statement(st_then,builder)
              then_context = context.pop()
+             context.push(False,old_context)
              then_block = builder.block
-          exit_block = builder.block
-          #print "ee"
-          for k,v,tv in context.different_in(old_context,then_context):
-             phi = builder.phi(v.type)
-             phi.add_incoming(v,old_block)
-             phi.add_incoming(tv,then_block)
-             context.set(k,phi)
-       #print json.dumps(st)
+          with otherwise:
+             if len(s["Statement"]) > 1:
+                st_otherwise = s["Statement"][1]
+                emit_statement(st_otherwise,builder)
+             else_context = context.pop()
+             else_block = builder.block
+       exit_block = builder.block
+       then_set = [k[0] for k in context.different_in(old_context,then_context)]
+       else_set = [k[0] for k in context.different_in(old_context,else_context)]
+       union = then_set[:]
+       union.append(*else_set)
+       union = list(set(union))
+       for k in union:
+          phi = builder.phi(old_context[k].type)
+          if k in then_set:
+             phi.add_incoming(then_context[k],then_block)
+          else:
+             phi.add_incoming(old_context[k],then_block)
+          if k in else_set:
+             phi.add_incoming(else_context[k],else_block)
+          else:
+             phi.add_incoming(old_context[k],else_block)
+          context.set(k,phi)
+
        return
    if "BREAK" in s:
        builder.branch(context.get_break())
