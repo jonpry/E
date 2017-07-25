@@ -83,8 +83,6 @@ def emit_literal(l,builder):
        return emit_float_literal(l["FloatLiteral"][0],builder)
    assert(False)
 
-def is_pointer(var):
-   return len(str(var.type).split("*")) > 1
 
 def emit_primary(p,builder):
    if "Literal" in p:
@@ -110,7 +108,7 @@ def emit_primary(p,builder):
                  args.append(e)
            return builder.call(func,args)
       else:
-         if is_pointer(context.get(var,builder)):
+         if context.is_pointer(context.get(var,builder)):
             return builder.load(context.get(var,builder))
          return context.get(var,builder)
    if "ParExpression" in p:
@@ -140,18 +138,21 @@ def emit_unary_expression(ue,builder):
       a = explicit_cast(a,t,builder)
 
    if "PostfixOp" in ue:
-      for e in ue["PostfixOp"]:
-         for k,v in context.items():
-           if v == a.operands[0]:
-              t = builder.load(v)
-              if "INC" in e:
-                 s = builder.add(t,ir.Constant(t.type,1))
-              else:
-                 s = builder.sub(t,ir.Constant(t.type,1))
-              builder.store(s,v)
-              found = True
-              break
-         assert(found)
+      e = ue["PostfixOp"][0]
+      ident = ue["Primary"][0]["QualifiedIdentifier"][0]
+      t = context.get(ident,builder)
+      if context.is_pointer(t):
+         t = builder.load(t)
+      if "INC" in e:
+         s = builder.add(t,ir.Constant(t.type,1))
+      else:
+         s = builder.sub(t,ir.Constant(t.type,1))
+      nt = context.get(ident,builder)
+      if context.is_pointer(nt):
+         builder.store(s,nt)
+      else:
+         context.set(ident,s)
+      return t
    return a
 
 def emit_multiplicative_expression(me,builder):
@@ -326,11 +327,26 @@ def emit_expression(se, builder):
       for i in range(len(se["LeftHandSide"])):
          var = se["LeftHandSide"][i]["QualifiedIdentifier"][0]
          op = se["AssignmentOperator"][i]
+
+         cv = context.get(var,builder)
          if "EQU" in op:
-            store(v,context.get(var,builder),builder)
-            continue
-         cv = builder.load(context.get(var,builder))
+             if context.is_pointer(cv):
+                v = explicit_cast(v,cv.type.pointee,builder)
+                builder.store(v,cv)
+             else:
+                v = explicit_cast(v,cv.type,builder)
+                context.set(var,v)
+             return v
+ 
+         if context.is_pointer(cv):
+            cv = builder.load(cv)  
+
+         if isinstance(cv,ir.Type):
+            ct = cv
+         else:
+            ct = cv.type
          v,cv,signed,flo = auto_cast(v,cv,builder)
+
          if "PLUSEQU" in op:
             if flo:
                v = builder.fadd(cv,v)    
@@ -384,8 +400,12 @@ def emit_expression(se, builder):
          else:
             assert(False)
 
-         store(v,context.get(var,builder),builder)
-
+         v = explicit_cast(v,ct,builder)
+         cv = context.get(var,builder)
+         if context.is_pointer(cv):
+            cv = builder.store(v,cv)
+         else:   
+            context.set(var,v)
 
    assert v!=None
    return v
@@ -458,9 +478,24 @@ def emit_statement(s,builder):
              with otherwise:
                 emit_statement(st_otherwise,builder)
        else:
+          #print "ss"
+
+          old_context = context.push(False)
+          old_block = builder.block
           with builder.if_then(c) as then:
              emit_statement(st_then,builder)
-
+             then_context = context.pop()
+             then_block = builder.block
+          exit_block = builder.block
+          #print "ee"
+          for k,v in old_context.items():
+              if k in then_context:
+                 tv = then_context[k]
+                 if v != tv:
+                   phi = builder.phi(v.type)
+                   phi.add_incoming(v,old_block)
+                   phi.add_incoming(tv,then_block)
+                   context.set(k,phi)
        #print json.dumps(st)
        return
    if "BREAK" in s:
@@ -474,9 +509,9 @@ def type_info(a):
    signed = False
    flo = False
    if "i" in str(a):
-     t = int(str(a).split("i")[1])
+     t = int(str(a).split("i")[1].split(' ')[0])
    elif "s" in str(a):
-     t = int(str(a).split("s")[1])
+     t = int(str(a).split("s")[1].split(' ')[0])
      signed = True
    elif "float" in str(a):
      t = 32
@@ -593,67 +628,6 @@ def explicit_cast(a,t,builder):
       return builder.fptoui(a,t)
    return builder.tounsigned(a)
 
-
-def store(val,var,builder):
-   valsigned = False
-   valfloat = False
-   if "i" in str(val.type):
-      valt = int(str(val.type).split("i")[1])
-   elif "s" in str(val.type):
-      valt = int(str(val.type).split("s")[1])
-      valsigned = True
-   elif "float" in str(val.type):
-      valt = 32
-      varfloat = True
-   elif "double" in str(val.type):
-      valt = 64
-      varfloat = True
-
-   varsigned = False
-   varfloat = False
-   if "i" in str(var.type):
-      vart = int(str(var.type).split("*")[0].split("i")[1])
-   elif "s" in str(var.type):
-      vart = int(str(var.type).split("*")[0].split("s")[1])
-      varsigned = True
-   elif "float" in str(var.type):
-      vart = 32
-      varfloat = True
-   elif "double" in str(var.type):
-      vart = 64
-      varfloat = True
-
-   if varsigned and not valsigned:
-      val = builder.tosigned(val)
-
-   if varsigned:
-      t = SIntType(vart)
-   elif varfloat:
-      if vart == 32:
-         t = ir.FloatType()
-      else:
-         t = ir.DoubleType()
-   else:
-      t = ir.IntType(vart)
-
-   if varfloat and not valfloat:
-      if valsigned:
-         val = builder.sitofp(val,t)
-      else:
-         val = builder.uitofp(val,t)
-
-   if varfloat:
-      if valt != vart:
-         val = builder.fpext(val,t)
-   else:
-      if valt != vart:
-         if valsigned:
-           val = builder.sext(val,t)
-         else:
-           val = builder.zext(val,t)
-   
-   builder.store(val,var)
-
 static_ctors = []
 ctors = []
 def emit_member_decl(t,static,st,module,pas):
@@ -683,19 +657,27 @@ def emit_member_decl(t,static,st,module,pas):
       context.push(False)
 
       val = emit_expression(st["VariableInitializer"][0]["Expression"][0],builder)
+      val = explicit_cast(val,t,builder)
       var = context.get(ident,builder)
-      store(val,var,builder)
+      if context.is_pointer(var):
+         builder.store(val,var)
+      else:       
+         context.set(ident,val,builder)
+
       context.pop()
       if not static:
          context.pop_this()
 
 def emit_local_decl(t,lv,builder):
-   context.create(lv["Identifier"][0], builder.alloca(t))
+   context.create(lv["Identifier"][0], t)
 
    if "VariableInitializer" in lv:
       val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],builder)
       var = context.get(lv["Identifier"][0],builder)
-      store(val,var,builder)
+      if isinstance(var,ir.Type):
+         context.set(lv["Identifier"][0], explicit_cast(val,var,builder))
+      else:
+         context.set(lv["Identifier"][0], explicit_cast(val,var.type,builder))
 
 
 def get_type(t):

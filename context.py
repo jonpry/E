@@ -10,6 +10,9 @@ funcs = {}
 func_stack = []
 package = ""
 
+def is_pointer(var):
+   return len(str(var.type).split("*")) > 1
+
 def push_func(func):
    global func_stack
    func_stack.append(func)
@@ -100,6 +103,13 @@ def get(var,builder=None):
       v = builder.gep(this,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),i)])
       return v
 
+def set(var, val, builder=None):
+   if var in context:
+      context[var] = val
+      return 
+   print var
+   assert(False)
+
 def create_member(t,name):
    global clz
    assert(name not in clz['class_members'])
@@ -122,12 +132,29 @@ def items():
    return context.items()
 
 def push(deep):
+   #print "push"
    global context
    global cstack
    if deep:
-      cstack.append(copy.deepcopy(context))
+      ret = copy.deepcopy(context)
    else:
-      cstack.append(context.copy())
+      ret = context.copy()
+   cstack.append(ret)
+   return ret
+
+def pop():
+   global context
+   global cstack   
+   #print "pop"
+
+   ret = context.copy()
+   context = cstack.pop().copy()
+
+   #pop can only clear variables from scope, not change meaning
+   for k,v in context.items():
+      if k in ret:
+        context[k] = ret[k]
+   return context
 
 thiss = []
 def push_this(this):
@@ -146,11 +173,6 @@ def create_global(name,val):
 def get_global(name):
    global globs;
    return globs[fqid() + "." + name]
-
-def pop():
-   global context
-   global cstack   
-   context = cstack.pop()
 
 breaks = []
 def push_break(tgt):
