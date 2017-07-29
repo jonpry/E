@@ -424,7 +424,12 @@ def emit_for_update(fu,builder):
    if "StatementExpression" in fu:
       emit_expression(fu["StatementExpression"][0],builder)
   
+init_ctx = {}
+for_ctx = {}
+
 def emit_statement(s,builder):
+   global init_ctx, for_ctx
+
    if "StatementExpression" in s:
       return emit_expression(s["StatementExpression"][0],builder)
    if "RETURN" in s:
@@ -437,7 +442,7 @@ def emit_statement(s,builder):
        context.pop()
        return
    if "FOR" in s:
-       old_context = context.push(False)
+       context.push(False)
        emit_for_init(s["ForInit"][0],builder)
        init_context = context.push(False)
        init_block = builder.block
@@ -445,6 +450,14 @@ def emit_statement(s,builder):
        cond_block = builder.append_basic_block()
        builder.branch(cond_block)
        builder.position_at_end(cond_block)
+
+       phis = {}
+       if json.dumps(s) in for_ctx:
+         for k in [k[0] for k in context.different_in(init_context,for_ctx[json.dumps(s)])]:
+            phi = builder.phi(init_context[k].type)
+            phi.add_incoming(init_context[k],init_block)
+            context.set(k,phi)
+            phis[k] = phi
 
        cond = emit_expression(s["Expression"][0],builder)
        cond = explicit_cast(cond,ir.IntType(1),builder)
@@ -463,22 +476,20 @@ def emit_statement(s,builder):
           emit_for_update(s["ForUpdate"][0],builder)
        builder.branch(cond_block)
        context.pop_break()
-       for_context = context.pop()
-
-#TODO: this is all wrong
-       #
-       #for_set = [k[0] for k in context.different_in(init_context,for_context)]
-       #for k in for_set:
-       #   if k in old_context:
-       #      phi = builder.phi(old_context[k].type)
-       #      phi.add_incoming(init_context[k],init_block)
-       #      phi.add_incoming(for_context[k],true_block)
-           
+       for_context = context.pop()      
 
        builder.position_at_end(end_block)
        #Two pops
-       context.pop()
        context.pop() 
+       context.pop() 
+
+       if json.dumps(s) in for_ctx:
+          for k,v in phis.items():
+             v.add_incoming(for_context[k],true_block)
+             context.set(k,v)
+       else:
+          for_ctx[json.dumps(s)] = for_context     
+
        return
    if "IF" in s:
        c = emit_par_expression(s["ParExpression"][0],builder)
