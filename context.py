@@ -5,36 +5,60 @@ from collections import OrderedDict
 
 context = {}
 cstack = []
-globs = {}
-funcs = {}
-func_stack = []
 package = ""
 
 def is_pointer(var):
    return len(str(var.type).split("*")) > 1
 
-def push_func(func):
-   global func_stack
-   func_stack.append(func)
+class funcs:
+   funcs = {}
+   func_stack = []
 
-def pop_func():
-   global func_stack
-   func_stack.pop()
+   @staticmethod
+   def push(func):
+     funcs.func_stack.append(func)
 
-def current_func():
-   global func_stack
-   return func_stack[-1]
+   @staticmethod
+   def pop():
+     funcs.func_stack.pop()
 
-def create_func(name,d):
-   global funcs
-   assert(name not in funcs)
-   funcs[name] = d;
+   @staticmethod
+   def current():
+     return funcs.func_stack[-1]
 
-def get_func(name):
-   global funcs
-   if name in funcs:
-      return funcs[name]
-   return funcs[fqid() + "." + name]
+   @staticmethod
+   def create(name,d):
+     assert(name not in funcs.funcs)
+     funcs.funcs[name] = d;
+
+   @staticmethod
+   def get(name):
+      if name in funcs.funcs:
+         return funcs.funcs[name]
+      return funcs.funcs[fqid() + "." + name]
+
+class globals:
+   globals = {}
+
+   @staticmethod   
+   def create(name,val):
+     assert(name not in globals.globals)
+     globals.globals[name] = val;
+
+   @staticmethod
+   def get(name):
+     return globals.globals[fqid() + "." + name]
+
+class thiss:
+   thiss = []
+
+   @staticmethod
+   def push(this):
+      thiss.thiss.append(this)
+
+   @staticmethod
+   def pop():
+      thiss.thiss.pop()
 
 def set_package(p):
    global package
@@ -50,8 +74,12 @@ def fqid():
    global clz
    return package + "." + clz['class_name']
 
+clzs = []
 def new_class():
-   return {'class_members' : {}, 'class_type' : None, 'class_name' : ''}
+   global clzs
+   clz = {'class_members' : {}, 'class_type' : None, 'class_name' : '', 'static_init' : None, 'init' : None}
+   clzs.append(clz)
+   return clz
 
 clz = {'class_members' : {}}
 class_stack = [{}]
@@ -85,19 +113,17 @@ def get_type():
 
 def get(var,builder=None):
    global context
-   global globs
    global clz
-   global thiss
 
    fq = fqid() + "." + var
    if var in context:
       return context[var]
-   if fq in globs:
-      return globs[fq]
-   if len(thiss) == 0 or thiss[-1] == None:
+   if fq in globals.globals:
+      return globals.globals[fq]
+   if len(thiss.thiss) == 0 or thiss.thiss[-1] == None:
       return None
 
-   this = thiss[-1]
+   this = thiss.thiss[-1]
    if var in clz['class_members']:
       i = clz['class_members'].keys().index(var)
       v = builder.gep(this,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),i)])
@@ -121,6 +147,22 @@ def get_member_types():
    for k,v in clz['class_members'].items():
      t.append(v)
    return t
+
+def set_static_init(func):
+   global clz
+   clz['static_init'] = func
+
+def set_init(func):
+   global clz
+   clz['init'] = func
+
+def get_static_init():
+   global clz
+   return clz['static_init']
+
+def get_init():
+   global clz
+   return clz['init']
 
 def create(var,v):
    global context
@@ -165,24 +207,6 @@ def pop():
    for k,v, nv in different_in(context,ret):
       context[k] = nv
    return context.copy()
-
-thiss = []
-def push_this(this):
-   global thiss
-   thiss.append(this)
-
-def pop_this():
-   global thiss
-   thiss.pop()
-
-def create_global(name,val):
-   global globs;
-   assert(name not in globs)
-   globs[name] = val;
-
-def get_global(name):
-   global globs;
-   return globs[fqid() + "." + name]
 
 breaks = []
 def push_break(tgt):

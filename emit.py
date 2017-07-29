@@ -94,10 +94,10 @@ def emit_primary(p,builder):
          if "Arguments" in suf:
            a = suf["Arguments"][0]
            args = []
-           func = context.get_func(var)["func"]
-           static =  context.get_func(var)["static"]
+           func = context.funcs.get(var)["func"]
+           static =  context.funcs.get(var)["static"]
            if not static:
-              assert(not context.current_func()["static"])
+              assert(not context.funcs.current()["static"])
               args.append(builder.function.args[0]) #todo: check caller is not static
            if "Expression" in a:
               for i in range(len(a["Expression"])):
@@ -437,15 +437,17 @@ def emit_statement(s,builder):
        context.pop()
        return
    if "FOR" in s:
-       context.push(False)
+       old_context = context.push(False)
        emit_for_init(s["ForInit"][0],builder)
-       new_block = builder.append_basic_block()
-       builder.branch(new_block)
-       builder.position_at_end(new_block)
+       init_context = context.push(False)
+       init_block = builder.block
+
+       cond_block = builder.append_basic_block()
+       builder.branch(cond_block)
+       builder.position_at_end(cond_block)
 
        cond = emit_expression(s["Expression"][0],builder)
        cond = explicit_cast(cond,ir.IntType(1),builder)
-       st_then = s["Statement"][0]
 
        true_block = builder.append_basic_block()
        end_block = builder.append_basic_block()
@@ -454,14 +456,28 @@ def emit_statement(s,builder):
        builder.position_at_end(true_block)
 
        #for loop contents
+       context.push(False)
        context.push_break(end_block)
-
-       emit_statement(st_then,builder)
-       emit_for_update(s["ForUpdate"][0],builder)
-       builder.branch(new_block)
-
+       emit_statement(s["Statement"][0],builder)
+       if "ForUpdate" in s:
+          emit_for_update(s["ForUpdate"][0],builder)
+       builder.branch(cond_block)
        context.pop_break()
+       for_context = context.pop()
+
+#TODO: this is all wrong
+       #
+       #for_set = [k[0] for k in context.different_in(init_context,for_context)]
+       #for k in for_set:
+       #   if k in old_context:
+       #      phi = builder.phi(old_context[k].type)
+       #      phi.add_incoming(init_context[k],init_block)
+       #      phi.add_incoming(for_context[k],true_block)
+           
+
        builder.position_at_end(end_block)
+       #Two pops
+       context.pop()
        context.pop() 
        return
    if "IF" in s:
@@ -645,12 +661,12 @@ def emit_member_decl(t,static,st,module,pas):
          ident = context.fqid() + "." + ident
          data = ir.GlobalVariable(module,t,ident)
          data.initializer = ir.Constant(t,0)
-         context.create_global(ident,data)
+         context.globals.create(ident,data)
          return data
       else:
          context.create_member(t,ident)
 
-   if pas == "method_body":
+   if pas == "method_body" or pas == "method_phi":
       if "VariableInitializer" not in st:
           return
 
@@ -658,7 +674,7 @@ def emit_member_decl(t,static,st,module,pas):
          builder = static_init
       else:
          builder = init
-         context.push_this(init.function.args[0])
+         context.thiss.push(init.function.args[0])
 
       context.push(False)
 
@@ -672,7 +688,7 @@ def emit_member_decl(t,static,st,module,pas):
 
       context.pop()
       if not static:
-         context.pop_this()
+         context.thiss.pop()
 
 def emit_local_decl(t,lv,builder):
    context.create(lv["Identifier"][0], t)
@@ -756,16 +772,17 @@ def emit_method(method,static,module,pas):
       typo = ir.FunctionType(rtype, types, False)
       func = ir.Function(module, typo, name)
       func.attributes.add("noinline")
-      context.create_func(name,{"func" : func, "names" : names, "ret" : rtype, "static" : static})
+      context.funcs.create(name,{"func" : func, "names" : names, "ret" : rtype, "static" : static})
       return
 
-   func = context.get_func(name)["func"]
+   func = context.funcs.get(name)["func"]
    context.push(True)
-   context.push_func(context.get_func(name))
+   context.funcs.push(context.funcs.get(name))
    for i in range(len(func.args)):
      arg = func.args[i]
-     context.create(context.get_func(name)["names"][i], arg)
+     context.create(context.funcs.get(name)["names"][i], arg)
 
+   func.blocks = []
    block = func.append_basic_block('entry')
    builder = Builder(block)
 
@@ -773,10 +790,10 @@ def emit_method(method,static,module,pas):
    for bs in methodbody["BlockStatements"][0]["BlockStatement"]:
       emit_blockstatement(bs,builder)
 
-   if context.get_func(name)["ret"] == ir.VoidType():
+   if context.funcs.get(name)["ret"] == ir.VoidType():
       builder.ret_void()
 
-   context.pop_func()
+   context.funcs.pop()
    context.pop()
 
 def emit_member(member,module,pas):
@@ -810,19 +827,28 @@ def emit_class(cls,module,pas):
    if pas == "decl_type":
       context.set_type(None,ident)
 
-   if pas == "method_body":
+   if pas == "decl_methods":
       typo = ir.FunctionType(ir.VoidType(), [context.get_type().as_pointer()], False)
       func = ir.Function(module, typo, context.fqid() + ".init")
       func.attributes.add("noinline")
-      block = func.append_basic_block('entry')
-      init = Builder(block)
+      context.set_init(func)
 
       typo = ir.FunctionType(ir.VoidType(), [], False)
       func = ir.Function(module, typo, context.fqid() + ".static.init")
       func.attributes.add("noinline")
+      context.set_static_init(func)
+      static_ctors.append(func)
+
+   if pas == "method_body" or pas == "method_phi":
+      func = context.get_init()
+      func.blocks = []
+      block = func.append_basic_block('entry')
+      init = Builder(block)
+
+      func = context.get_static_init()
+      func.blocks = []
       block = func.append_basic_block('entry')
       static_init = Builder(block)
-      static_ctors.append(func)
 
    for decl in decls:
       static = "STATIC" in decl
@@ -830,16 +856,16 @@ def emit_class(cls,module,pas):
       if "MemberDecl" in decl:
          emit_member(decl["MemberDecl"][0],module,pas)
       elif "Block" in decl:
-         if pas == "method_body":
+         if pas == "method_body" or pas == "method_phi":
              builder = static_init if static else init
              context.push(False)
              if not static:
-                context.push_this(init.function.args[0])
+                context.thiss.push(init.function.args[0])
              block = decl["Block"][0]
              for bs in block["BlockStatements"][0]["BlockStatement"]:
                 emit_blockstatement(bs,builder)
              if not static:
-                context.pop_this()
+                context.thiss.pop()
              context.pop()
       else:
         assert(False)
@@ -849,7 +875,7 @@ def emit_class(cls,module,pas):
       types = context.get_member_types()
       t.set_body(*types)
       context.set_type(t,ident)
-   if pas == "method_body":
+   if pas == "method_body" or pas == "method_phi":
       init.ret_void()
       static_init.ret_void()
 
@@ -878,8 +904,8 @@ def emit_print_func(module,name,fmt,typo):
     func.attributes.add("noinline")
     block = func.append_basic_block('entry')
     builder = Builder(block)
-    context.create_func(name,{"func" : func, "names" : ["v"], "ret" : ir.VoidType(), "static" : True})
-    pfn = context.get_func("printf")["func"]
+    context.funcs.create(name,{"func" : func, "names" : ["v"], "ret" : ir.VoidType(), "static" : True})
+    pfn = context.funcs.get("printf")["func"]
 
     #create global for string
     fmt_bytes = make_bytearray((fmt + '\n\00').encode('ascii'))
@@ -893,7 +919,7 @@ def emit_print_func(module,name,fmt,typo):
 def emit_print_funcs(module):
     fnty = ir.FunctionType(ir.IntType(32), [ir.IntType(8).as_pointer()], var_arg=True)
     fn = ir.Function(module, fnty, name="printf")
-    context.create_func("printf",{"func" : fn, "names" : [], "ret" : ir.IntType(32), "static" : True})
+    context.funcs.create("printf",{"func" : fn, "names" : [], "ret" : ir.IntType(32), "static" : True})
 
     emit_print_func(module, "print_uint", "%u", ir.IntType(32))
     emit_print_func(module, "print_ulong", "%ul", ir.IntType(64))
@@ -928,8 +954,9 @@ def emit_module(unit,pas):
       for f in static_ctors:
         builder.call(f,[])
 
-      builder.call(context.get_func("life.stel.e.test.TestClass.main")["func"],[])
+      builder.call(context.funcs.get("life.stel.e.test.TestClass.main")["func"],[])
 
       builder.ret_void()
+
       print str(module).replace("s32","i32").replace("s16","i16").replace("s64","i64").replace("s8","i8")
 

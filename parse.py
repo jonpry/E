@@ -292,6 +292,10 @@ def main(args):
     '''Third pass, emit declarations'''
     emit.emit_module(parse_tree["CompilationUnit"][0],"decl_methods")
 
+    #print "method_phi"
+    '''Fourth pass, emit methods in order to create lookahead of phi nodes'''
+    emit.emit_module(parse_tree["CompilationUnit"][0],"method_phi")
+
     #print "method_body"
     '''Fourth pass, emit definitions'''
     emit.emit_module(parse_tree["CompilationUnit"][0],"method_body")
