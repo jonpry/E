@@ -60,6 +60,21 @@ class thiss:
    def pop():
       thiss.thiss.pop()
 
+class breaks:
+   breaks = []
+
+   @staticmethod
+   def push(tgt):
+      breaks.breaks.append(tgt)
+
+   @staticmethod
+   def pop():
+      breaks.breaks.pop()
+
+   @staticmethod
+   def get():
+      return breaks.breaks[-1]
+
 def set_package(p):
    global package
    package = p
@@ -212,15 +227,4 @@ def pop():
       context[k] = nv
    return context.copy()
 
-breaks = []
-def push_break(tgt):
-   global breaks
-   breaks.append(tgt)
 
-def pop_break():
-   global breaks
-   breaks.pop()
-
-def get_break():
-   global breaks
-   return breaks[-1]

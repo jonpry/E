@@ -473,13 +473,13 @@ def emit_statement(s,builder):
        #for loop contents
        context.push(False)
        breaks = []
-       context.push_break((end_block,breaks))
+       context.breaks.push((end_block,breaks))
        emit_statement(s["Statement"][0],builder)
        if "ForUpdate" in s:
           emit_for_update(s["ForUpdate"][0],builder)
        true_block = builder.block
        builder.branch(cond_block)
-       context.pop_break()
+       context.breaks.pop()
        for_context = context.pop()      
 
        builder.position_at_end(end_block)
@@ -542,10 +542,13 @@ def emit_statement(s,builder):
 
        return
    if "BREAK" in s:
-       builder.branch(context.get_break()[0])
-       context.get_break()[1].append((builder.block,context.current()))
+       builder.branch(context.breaks.get()[0])
+       context.breaks.get()[1].append((builder.block,context.current()))
        return 
-
+   if "CONTINUE" in s:
+       print json.dumps(s)
+       assert(False)
+       return 
    print json.dumps(s)
    assert(False)
 
