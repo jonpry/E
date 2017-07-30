@@ -466,6 +466,7 @@ def emit_statement(s,builder):
 
        true_block = builder.append_basic_block()
        end_block = builder.append_basic_block()
+       update_block = builder.append_basic_block()
  
        builder.cbranch(cond,true_block,end_block)
        builder.position_at_end(true_block)
@@ -475,12 +476,11 @@ def emit_statement(s,builder):
        breaks = []
        continues = []
        context.breaks.push((end_block,breaks))
-       context.continues.push((cond_block,continues))
+       context.continues.push((update_block,continues))
 
        emit_statement(s["Statement"][0],builder)
-       true_block = builder.append_basic_block()
-       builder.branch(true_block)
-       builder.position_at_end(true_block)
+       builder.branch(update_block)
+       builder.position_at_end(update_block)
        if "ForUpdate" in s:
           emit_for_update(s["ForUpdate"][0],builder)
        builder.branch(cond_block)
@@ -495,7 +495,7 @@ def emit_statement(s,builder):
 
        if json.dumps(s) in for_ctx:
           for k,v in phis.items():
-             v.add_incoming(for_context[k],true_block)
+             v.add_incoming(for_context[k],update_block)
              context.set(k,v)
           for b in breaks:
              for k in [k[0] for k in context.different_in(init_context,b[1])]:
