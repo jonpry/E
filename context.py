@@ -75,6 +75,21 @@ class breaks:
    def get():
       return breaks.breaks[-1]
 
+class continues:
+   continues = []
+
+   @staticmethod
+   def push(tgt):
+      continues.continues.append(tgt)
+
+   @staticmethod
+   def pop():
+      continues.continues.pop()
+
+   @staticmethod
+   def get():
+      return continues.continues[-1]
+
 def set_package(p):
    global package
    package = p

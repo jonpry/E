@@ -473,13 +473,19 @@ def emit_statement(s,builder):
        #for loop contents
        context.push(False)
        breaks = []
+       continues = []
        context.breaks.push((end_block,breaks))
+       context.continues.push((cond_block,continues))
+
        emit_statement(s["Statement"][0],builder)
+       true_block = builder.append_basic_block()
+       builder.branch(true_block)
+       builder.position_at_end(true_block)
        if "ForUpdate" in s:
           emit_for_update(s["ForUpdate"][0],builder)
-       true_block = builder.block
        builder.branch(cond_block)
        context.breaks.pop()
+       context.continues.pop()
        for_context = context.pop()      
 
        builder.position_at_end(end_block)
@@ -546,8 +552,8 @@ def emit_statement(s,builder):
        context.breaks.get()[1].append((builder.block,context.current()))
        return 
    if "CONTINUE" in s:
-       print json.dumps(s)
-       assert(False)
+       builder.branch(context.continues.get()[0])
+       context.continues.get()[1].append((builder.block,context.current()))
        return 
    print json.dumps(s)
    assert(False)
