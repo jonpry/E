@@ -173,6 +173,10 @@ def items():
    global context
    return context.items()
 
+def current():
+   global context
+   return context.copy()
+
 def push(deep,force=None):
    #print "push"
    global context

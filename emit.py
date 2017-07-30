@@ -459,6 +459,8 @@ def emit_statement(s,builder):
             context.set(k,phi)
             phis[k] = phi
 
+       init_context = context.current()
+
        cond = emit_expression(s["Expression"][0],builder)
        cond = explicit_cast(cond,ir.IntType(1),builder)
 
@@ -470,10 +472,12 @@ def emit_statement(s,builder):
 
        #for loop contents
        context.push(False)
-       context.push_break(end_block)
+       breaks = []
+       context.push_break((end_block,breaks))
        emit_statement(s["Statement"][0],builder)
        if "ForUpdate" in s:
           emit_for_update(s["ForUpdate"][0],builder)
+       true_block = builder.block
        builder.branch(cond_block)
        context.pop_break()
        for_context = context.pop()      
@@ -487,8 +491,14 @@ def emit_statement(s,builder):
           for k,v in phis.items():
              v.add_incoming(for_context[k],true_block)
              context.set(k,v)
+          for b in breaks:
+             for k in [k[0] for k in context.different_in(init_context,b[1])]:
+                phi = builder.phi(init_context[k].type)
+                phi.add_incoming(context.get(k),cond_block)
+                phi.add_incoming(b[1][k],b[0])
+                context.set(k,phi)
        else:
-          for_ctx[json.dumps(s)] = for_context     
+          for_ctx[json.dumps(s)] = for_context 
 
        return
    if "IF" in s:
@@ -532,7 +542,8 @@ def emit_statement(s,builder):
 
        return
    if "BREAK" in s:
-       builder.branch(context.get_break())
+       builder.branch(context.get_break()[0])
+       context.get_break()[1].append((builder.block,context.current()))
        return 
 
    print json.dumps(s)
