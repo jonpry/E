@@ -169,6 +169,15 @@ public final class TestClass {
              i++;
              continue;
            }
+          if(i%10==6)
+             break;
+           j = i + 2;
+           if(i%10==7)
+             break;
+           if(i%20==8){
+             i++;
+             continue;
+           }
            i++;
         }
         print_int(j);
