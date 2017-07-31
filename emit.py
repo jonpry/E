@@ -497,7 +497,12 @@ def emit_statement(s,builder):
        for k,a in ncontinues.items():
           phi = builder.phi(update_context[k].type)
           phi.add_incoming(update_context[k],last_block)
+          r = continues[:]
           for c in a:
+            phi.add_incoming(c[1][k],c[0])
+            if c in r:
+              r.remove(c)
+          for c in r:
             phi.add_incoming(c[1][k],c[0])
           context.set(k,phi)
 
