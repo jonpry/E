@@ -441,9 +441,10 @@ def emit_statement(s,builder):
           emit_blockstatement(bs,builder)
        context.pop()
        return
-   if "FOR" in s:
+   if "FOR" in s or "WHILE" in s:
        context.push(False)
-       emit_for_init(s["ForInit"][0],builder)
+       if "ForInit" in s:
+          emit_for_init(s["ForInit"][0],builder)
        init_context = context.push(False)
        init_block = builder.block
 
@@ -556,37 +557,53 @@ def emit_statement(s,builder):
        old_context = context.push(False)
        old_block = builder.block
 
-       with builder.if_else(c) as (then, otherwise):
-          with then:
-             emit_statement(st_then,builder)
-             then_context = context.pop()
-             context.push(False,old_context)
-             then_block = builder.block
-          with otherwise:
-             if len(s["Statement"]) > 1:
-                st_otherwise = s["Statement"][1]
-                emit_statement(st_otherwise,builder)
-             else_context = context.pop()
-             else_block = builder.block
-       exit_block = builder.block
-       then_set = [k[0] for k in context.different_in(old_context,then_context)]
-       else_set = [k[0] for k in context.different_in(old_context,else_context)]
+       true_block = builder.append_basic_block()
+       false_block = builder.append_basic_block()
+       end_block = builder.append_basic_block()
+
+       builder.cbranch(c,true_block,false_block)
+       builder.position_at_end(true_block)
+       emit_statement(st_then,builder)
+       true_context = context.pop()
+       has_phi = True
+       context.push(False,old_context)
+       if not builder.block.is_terminated:
+          builder.branch(end_block)
+       else:
+          has_phi = False
+       true_block = builder.block
+
+       builder.position_at_end(false_block)
+       if len(s["Statement"]) > 1:
+          st_otherwise = s["Statement"][1]
+          emit_statement(st_otherwise,builder)
+       false_context = context.pop()
+       false_block = builder.block
+       if not builder.block.is_terminated:
+          builder.branch(end_block)
+       else:
+          has_phi = False
+
+       builder.position_at_end(end_block)
+
+       then_set = [k[0] for k in context.different_in(old_context,true_context)]
+       else_set = [k[0] for k in context.different_in(old_context,false_context)]
        union = then_set[:]
        if len(else_set) > 0:
           union.append(*else_set)
        union = list(set(union))
-       for k in union:
-          phi = builder.phi(old_context[k].type)
-          if k in then_set:
-             phi.add_incoming(then_context[k],then_block)
-          else:
-             phi.add_incoming(old_context[k],then_block)
-          if k in else_set:
-             phi.add_incoming(else_context[k],else_block)
-          else:
-             phi.add_incoming(old_context[k],else_block)
-          context.set(k,phi)
-
+       if has_phi:
+          for k in union:
+             phi = builder.phi(old_context[k].type)
+             if k in then_set:
+                phi.add_incoming(true_context[k],true_block)
+             else:
+                phi.add_incoming(old_context[k],true_block)
+             if k in else_set:
+                phi.add_incoming(false_context[k],false_block)
+             else:
+                phi.add_incoming(old_context[k],false_block)
+             context.set(k,phi)
        return
    if "BREAK" in s:
        builder.branch(context.breaks.get()[0])

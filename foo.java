@@ -142,10 +142,16 @@ public final class TestClass {
     public static void for_test(int k) throws Exception {
         int i=0;
         int j=0;
-        for(i=0; i < k; i++){
-           j = i + 2;
-           if(i % 10 == 7)
+        for(i=0; i < k;i++){
+           if(i%10==5)
+             continue;
+           if(i%10==6)
              break;
+           j = i + 2;
+           if(i%10==7)
+             break;
+           if(i%20==8)
+             continue;
         }
         print_int(j);
     }
@@ -155,6 +161,20 @@ public final class TestClass {
         print_int(f);
     }
 
+    public static void while_test(int k) throws Exception {
+        int i=0;
+        int j=0;
+        while(i < k){
+           if(i%10==5){
+             i++;
+             continue;
+           }
+           i++;
+        }
+        print_int(j);
+    }
+
+
     public static int main() throws Exception {
         constant_int_test();
         constant_float_test();
@@ -163,6 +183,7 @@ public final class TestClass {
         if_test(true);
         for_test(10);
         multiple_parm_test(1,2);
+        while_test(10);
 
         float r=1;
         r += 1;
