@@ -508,12 +508,22 @@ def emit_statement(s,builder):
           for k,v in phis.items():
              v.add_incoming(for_context[k],update_block)
              context.set(k,v)
+
+
+          nbreaks = {}
           for b in breaks:
              for k in [k[0] for k in context.different_in(init_context,b[1])]:
-                phi = builder.phi(init_context[k].type)
-                phi.add_incoming(context.get(k),cond_block)
+                if k in nbreaks:
+                   nbreaks[k].append(b)
+                else:
+                   nbreaks[k] = [b]
+          
+          for k,a in nbreaks.items():
+              phi = builder.phi(init_context[k].type)
+              phi.add_incoming(context.get(k),cond_block)
+              for b in a:
                 phi.add_incoming(b[1][k],b[0])
-                context.set(k,phi)
+              context.set(k,phi)
        else:
           for_ctx[json.dumps(s)] = for_context 
 
