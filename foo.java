@@ -183,6 +183,27 @@ public final class TestClass {
         print_int(j);
     }
 
+   public static void do_while_test(int k) throws Exception {
+        int i=0;
+        int j=0;
+        do{
+           if(i%10==5){
+             i++;
+             continue;
+           }
+          if(i%10==6)
+             break;
+           j = i + 2;
+           if(i%10==7)
+             break;
+           if(i%20==8){
+             i++;
+             continue;
+           }
+           i++;
+        }while(i < k);
+        print_int(j);
+    }
 
     public static int main() throws Exception {
         constant_int_test();
@@ -193,6 +214,7 @@ public final class TestClass {
         for_test(10);
         multiple_parm_test(1,2);
         while_test(10);
+        do_while_test(10);
 
         float r=1;
         r += 1;

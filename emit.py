@@ -442,6 +442,7 @@ def emit_statement(s,builder):
        context.pop()
        return
    if "FOR" in s or "WHILE" in s:
+       do = "DO" in s
        context.push(False)
        if "ForInit" in s:
           emit_for_init(s["ForInit"][0],builder)
@@ -460,6 +461,11 @@ def emit_statement(s,builder):
             context.set(k,phi)
             phis[k] = phi
 
+       if do:
+          phi = builder.phi(ir.IntType(1))
+          phi.add_incoming(ir.Constant(ir.IntType(1),1),init_block)
+          doreg = phi
+
        init_context = context.current()
 
        cond = emit_expression(s["Expression"][0],builder)
@@ -469,6 +475,9 @@ def emit_statement(s,builder):
        end_block = builder.append_basic_block()
        update_block = builder.append_basic_block()
  
+       if do:
+         cond = builder.or_(doreg,cond)
+
        builder.cbranch(cond,true_block,end_block)
        builder.position_at_end(true_block)
 
@@ -525,6 +534,8 @@ def emit_statement(s,builder):
              v.add_incoming(for_context[k],update_block)
              context.set(k,v)
 
+          if do:
+             doreg.add_incoming(ir.Constant(ir.IntType(1),0),update_block)
 
           nbreaks = {}
           for b in breaks:

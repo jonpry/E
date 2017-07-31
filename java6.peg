@@ -342,7 +342,7 @@ Statement
     / FOR LPAR ForInit? SEMI Expression? SEMI ForUpdate? RPAR Statement
     / FOR LPAR FormalParameter COLON Expression RPAR Statement
     / WHILE LPAR Expression RPAR Statement
-    / DO Statement WHILE ParExpression   SEMI
+    / DO Statement WHILE LPAR Expression RPAR SEMI
     / TRY LPAR Resource (SEMI Resource)* SEMI? RPAR Block Catch* Finally?
     / TRY Block (Catch+ Finally? / Finally)
     / SWITCH ParExpression LWING SwitchBlockStatementGroups RWING
