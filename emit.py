@@ -480,9 +480,20 @@ def emit_statement(s,builder):
 
        emit_statement(s["Statement"][0],builder)
        builder.branch(update_block)
+       last_block = builder.block
        builder.position_at_end(update_block)
+
+       update_context = context.current()
+       for c in continues:
+          for k in [k[0] for k in context.different_in(update_context,c[1])]:
+             phi = builder.phi(update_context[k].type)
+             phi.add_incoming(update_context[k],last_block)
+             phi.add_incoming(c[1][k],c[0])
+             context.set(k,phi)
+
        if "ForUpdate" in s:
           emit_for_update(s["ForUpdate"][0],builder)
+
        builder.branch(cond_block)
        context.breaks.pop()
        context.continues.pop()
