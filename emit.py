@@ -484,12 +484,22 @@ def emit_statement(s,builder):
        builder.position_at_end(update_block)
 
        update_context = context.current()
+       ncontinues = {}
        for c in continues:
           for k in [k[0] for k in context.different_in(update_context,c[1])]:
-             phi = builder.phi(update_context[k].type)
-             phi.add_incoming(update_context[k],last_block)
-             phi.add_incoming(c[1][k],c[0])
-             context.set(k,phi)
+             if k in ncontinues:
+                ncontinues[k].append(c)
+             else:
+                ncontinues[k] = [c]
+
+       #print ncontinues
+       #exit(0)
+       for k,a in ncontinues.items():
+          phi = builder.phi(update_context[k].type)
+          phi.add_incoming(update_context[k],last_block)
+          for c in a:
+            phi.add_incoming(c[1][k],c[0])
+          context.set(k,phi)
 
        if "ForUpdate" in s:
           emit_for_update(s["ForUpdate"][0],builder)
@@ -521,8 +531,13 @@ def emit_statement(s,builder):
           for k,a in nbreaks.items():
               phi = builder.phi(init_context[k].type)
               phi.add_incoming(context.get(k),cond_block)
+              s = breaks[:]
               for b in a:
                 phi.add_incoming(b[1][k],b[0])
+                if b in s:
+                   s.remove(b)
+              for b in s:
+                phi.add_incoming(b[1][k],b[0])                
               context.set(k,phi)
        else:
           for_ctx[json.dumps(s)] = for_context 
