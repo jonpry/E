@@ -756,6 +756,7 @@ Modifier
       / "synchronized"
       / "transient"
       / "volatile"
+      / "native"
       ) !LetterOrDigit Spacing
     ;
 

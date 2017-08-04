@@ -841,7 +841,7 @@ def emit_blockstatement(bs,builder):
      return emit_local_variable_decl(bs["LocalVariableDeclarationStatement"][0],builder)
    assert(False)
 
-def emit_method(method,static,module,pas):
+def emit_method(method,static,native,module,pas):
    name = method["Identifier"][0]
 
    if pas == "decl_type":
@@ -868,12 +868,18 @@ def emit_method(method,static,module,pas):
            types.append(t)
            names.append(fp["VariableDeclaratorId"][0]["Identifier"][0])
 
+      native_name = name
       name = context.fqid() + "." + name
       typo = ir.FunctionType(rtype, types, False)
-      func = ir.Function(module, typo, name)
+      func = ir.Function(module, typo, native_name if native else name)
       func.attributes.add("noinline")
-      context.funcs.create(name,{"func" : func, "names" : names, "ret" : rtype, "static" : static})
+      context.funcs.create(name,{"func" : func, "names" : names, "ret" : rtype, "static" : (static or native), "native" : native})
       return
+
+   if "MethodBody" not in method:
+      return
+
+   assert(not native)
 
    func = context.funcs.get(name)["func"]
    context.push(True)
@@ -897,14 +903,15 @@ def emit_method(method,static,module,pas):
    context.pop()
 
 def emit_member(member,module,pas):
-   static = False;
+   static = False
+   native = False
    if "Modifier" in member:
       mods = member["Modifier"]
-      if "static" in mods:
-         static = True;
+      static = "static" in mods;
+      native = "native" in mods;
 
    if "MethodDeclarator" in member:
-      return emit_method(member["MethodDeclarator"][0],static,module,pas)
+      return emit_method(member["MethodDeclarator"][0],static,native,module,pas)
    if "VariableDeclarators" in member:
       t = get_type(member["Type"][0])
       l = member["VariableDeclarators"][0]["VariableDeclarator"]

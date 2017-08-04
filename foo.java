@@ -45,6 +45,8 @@ public final class TestClass {
        sBar = x;
     }
 
+    public native void foo(int i);
+
     public int member2(int j) throws Exception {
         return j;
     }
