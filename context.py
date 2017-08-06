@@ -32,6 +32,13 @@ class funcs:
      funcs.funcs[name] = d;
 
    @staticmethod
+   def get_native(name):
+      for f,v in funcs.funcs.items():
+         if v['func'].name == name:
+            return v['func']
+      return None
+
+   @staticmethod
    def get(name):
       if name in funcs.funcs:
          return funcs.funcs[name]

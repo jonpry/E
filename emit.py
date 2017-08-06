@@ -857,7 +857,7 @@ def emit_method(method,static,native,module,pas):
       types = []
       names = []
 
-      if not static:
+      if not static and not native:
          types.append(context.get_type())
          names.append("this")
       
@@ -1006,12 +1006,16 @@ def global_constant(module, name, value):
     return data
 
 def emit_print_func(module,name,fmt,typo):
-    fnty = ir.FunctionType(ir.VoidType(), [typo])
-    func = ir.Function(module, fnty, name=name)
-    func.attributes.add("noinline")
+    func = context.funcs.get_native(name)
+    if func == None:
+       #assert(False)
+       fnty = ir.FunctionType(ir.VoidType(), [typo])
+       func = ir.Function(module, fnty, name=name)
+       func.attributes.add("noinline")
+       context.funcs.create(name,{"func" : func, "names" : ["v"], "ret" : ir.VoidType(), "static" : True, "native" : True})
+
     block = func.append_basic_block('entry')
     builder = Builder(block)
-    context.funcs.create(name,{"func" : func, "names" : ["v"], "ret" : ir.VoidType(), "static" : True})
     pfn = context.funcs.get("printf")["func"]
 
     #create global for string
@@ -1045,12 +1049,12 @@ def emit_module(unit,pas):
       if "PackageDeclaration" in unit:
           context.set_package(unit["PackageDeclaration"][0]["QualifiedIdentifier"][0])
 
-   if pas == "decl_methods":
-       emit_print_funcs(module)
-
    for t in unit["TypeDeclaration"]:
       assert "ClassDeclaration" in t
       emit_class(t["ClassDeclaration"][0],module,pas)
+
+   if pas == "decl_methods":
+       emit_print_funcs(module)
 
    if pas == "method_body":
       typo = ir.FunctionType(ir.VoidType(), [])

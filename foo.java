@@ -1,7 +1,7 @@
 /*
   Copyright 2017 The E Project
  *
- * The Netty Project licenses this file to you under the Apache License,
+ * The E Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
@@ -45,7 +45,7 @@ public final class TestClass {
        sBar = x;
     }
 
-    public native void foo(int i);
+    public native void print_int(int i);
 
     public int member2(int j) throws Exception {
         return j;
