@@ -25,6 +25,17 @@ public final class ClassB {
     public static int sFoo = 2;
     public static int sBar = 3;
     public ulong mBar=4; 
+
+    //This is a test of initializer blocks
+    {
+       int x=0;
+       mBar = x;
+    }
+
+    public void MlassB(){
+       int x=0;
+       mBar = x;
+    }
 }
 
 public final class TestClass {

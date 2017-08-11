@@ -725,9 +725,12 @@ def emit_method(method,static,native,module,pas):
       return
 
    if pas == "decl_methods":
-      tv = method["TypeOrVoid"][0]
-      if "Type" in tv:
-        rtype = get_type(tv["Type"][0])
+      rtype = ir.VoidType()
+
+      if "TypeOrVoid" in method:
+        tv = method["TypeOrVoid"][0]
+        if "Type" in tv:
+           rtype = get_type(tv["Type"][0])
       else:
         rtype = ir.VoidType()
       fps = method["FormalParameters"][0]
@@ -735,7 +738,7 @@ def emit_method(method,static,native,module,pas):
       names = []
 
       if not static and not native:
-         types.append(context.get_type())
+         types.append(context.get_type().as_pointer())
          names.append("this")
       
       if "FormalParameterList" in fps:
@@ -761,6 +764,9 @@ def emit_method(method,static,native,module,pas):
    func = context.funcs.get(name)["func"]
    context.push(True)
    context.funcs.push(context.funcs.get(name))
+
+   if not static:
+       context.thiss.push(func.args[0])
    for i in range(len(func.args)):
      arg = func.args[i]
      context.create(context.funcs.get(name)["names"][i], arg)
@@ -776,6 +782,8 @@ def emit_method(method,static,native,module,pas):
    if context.funcs.get(name)["ret"] == ir.VoidType():
       builder.ret_void()
 
+   if not static:
+      context.thiss.pop()
    context.funcs.pop()
    context.pop()
 
@@ -789,6 +797,9 @@ def emit_member(member,module,pas):
 
    if "MethodDeclarator" in member:
       return emit_method(member["MethodDeclarator"][0],static,native,module,pas)
+   if "ConstructorDeclarator" in member:
+      return emit_method(member["ConstructorDeclarator"][0],False,False,module,pas)
+
    if "VariableDeclarators" in member:
       t = get_type(member["Type"][0])
       l = member["VariableDeclarators"][0]["VariableDeclarator"]

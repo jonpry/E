@@ -163,6 +163,7 @@ def get(var,builder=None):
    this = thiss.thiss[-1]
    if var in clz['class_members']:
       i = clz['class_members'].keys().index(var)
+      print this
       v = builder.gep(this,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),i)])
       return v
 
