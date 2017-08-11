@@ -46,6 +46,7 @@ public final class TestClass {
     }
 
     public native void print_int(int i);
+    public native void mprintf(long l, Object... args);
 
     public int member2(int j) throws Exception {
         return j;

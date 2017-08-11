@@ -6,7 +6,7 @@ from collections import OrderedDict
 from llvmlite import ir
 from llvmlite import binding
 from signed import SIntType, Builder
-import context
+import context, cast
 
 def emit_float_literal(fl,builder):
    dat = fl["DecimalFloat"][0]
@@ -104,7 +104,7 @@ def emit_primary(p,builder):
                  e = a["Expression"][i]
                  t = func.args[i if static else i+1]
                  e = emit_expression(e,builder)
-                 e,foo,signed,flo = auto_cast(e,t,builder,single=True,force_sign=str(t)[0])
+                 e,foo,signed,flo = cast.auto_cast(e,t,builder,single=True,force_sign=str(t)[0])
                  args.append(e)
            return builder.call(func,args)
       else:
@@ -135,7 +135,7 @@ def emit_unary_expression(ue,builder):
    if "Type" in ue:
       t = get_type(ue["Type"][0])
       a = emit_unary_expression(ue["UnaryExpression"][0],builder)
-      a = explicit_cast(a,t,builder)
+      a = cast.explicit_cast(a,t,builder)
 
    if "PostfixOp" in ue:
       e = ue["PostfixOp"][0]
@@ -160,7 +160,7 @@ def emit_multiplicative_expression(me,builder):
    if "StarDivModUnaryExpression" in me:
       for e in me["StarDivModUnaryExpression"]:
          b = emit_unary_expression(e["UnaryExpression"][0],builder) 
-         a,b,signed,flo = auto_cast(a,b,builder,i=32)
+         a,b,signed,flo = cast.auto_cast(a,b,builder,i=32)
          if "STAR" in e:
             a = builder.mul(a,b)
          elif "DIV" in e:
@@ -181,7 +181,7 @@ def emit_additive_expression(ae,builder):
    if "PlusOrMinusMultiplicativeExpression" in ae:
       for e in ae["PlusOrMinusMultiplicativeExpression"]:
          b = emit_multiplicative_expression(e["MultiplicativeExpression"][0],builder)
-         a,b,signed,flo = auto_cast(a,b,builder,i=32)
+         a,b,signed,flo = cast.auto_cast(a,b,builder,i=32)
          if "PLUS" in e:
             if flo:
               a = builder.fadd(a,b)
@@ -199,7 +199,7 @@ def emit_shift_expression(se,builder):
    if "ShiftAdditiveExpression" in se:
      for e in se["ShiftAdditiveExpression"]:
        b = emit_additive_expression(e["AdditiveExpression"][0],builder)
-       a,b,signed,flo = auto_cast(a,b,builder,i=32)
+       a,b,signed,flo = cast.auto_cast(a,b,builder,i=32)
        if "SR" in e:
           if signed:
              a = builder.ashr(a,b)
@@ -229,7 +229,7 @@ def emit_relational_expression(re,builder):
            op = ">"
          if "GE" in e:
            op = ">="	
-         a,b,signed,flo = auto_cast(a,b,builder,i=32)
+         a,b,signed,flo = cast.auto_cast(a,b,builder,i=32)
          if flo:
             a = builder.fcmp_ordered(op,a,b)
          elif signed:
@@ -249,7 +249,7 @@ def emit_equality_expression(ee,builder):
            op = "=="
          if "NOTEQUAL" in e:
            op = "!="
-         a,b,signed,flo = auto_cast(a,b,builder,i=32)
+         a,b,signed,flo = cast.auto_cast(a,b,builder,i=32)
          if flo:
             a = builder.fcmp_ordered(op,a,b)
          elif signed:
@@ -263,7 +263,7 @@ def emit_and_expression(ae,builder):
    if "AndEqualityExpression" in ae:
       for e in ae["AndEqualityExpression"]:
          b = emit_equality_expression(e["EqualityExpression"][0],builder)
-         a,b,signed,flo = auto_cast(a,b,builder,i=32)
+         a,b,signed,flo = cast.auto_cast(a,b,builder,i=32)
          assert(not flo)
          a = builder.and_(a,b)
    return a
@@ -273,7 +273,7 @@ def emit_exlusive_or_expression(ee,builder):
    if "HatAndExpression" in ee:
      for e in ee["HatAndExpression"]:
         b = emit_and_expression(e["AndExpression"][0],builder)
-        a,b,signed,flo = auto_cast(a,b,builder,i=32)
+        a,b,signed,flo = cast.auto_cast(a,b,builder,i=32)
         assert(not flo)
         a = builder.xor(a,b)      
    return a
@@ -283,7 +283,7 @@ def emit_inclusive_or_expression(ie,builder):
    if "OrExclusiveOrExpression" in ie:
       for e in ie["OrExclusiveOrExpression"]:
         b = emit_exlusive_or_expression(e["ExclusiveOrExpression"][0],builder)
-        a,b,signed,flo = auto_cast(a,b,builder,i=32)
+        a,b,signed,flo = cast.auto_cast(a,b,builder,i=32)
         assert(not flo)
         a = builder.or_(a,b)      
    return a
@@ -315,8 +315,8 @@ def emit_conditional_expression(ce,builder):
       for e in ce["QueryConditionalOrExpression"]:
          ex = emit_expression(e["Expression"][0],builder)
          ne = emit_conditional_expression(e,builder)
-         ex,ne,signed,flo = auto_cast(ex,ne,builder)
-         a = builder.select(explicit_cast(a,ir.IntType(1),builder),ex,ne)
+         ex,ne,signed,flo = cast.auto_cast(ex,ne,builder)
+         a = builder.select(cast.explicit_cast(a,ir.IntType(1),builder),ex,ne)
    return a
 
 def emit_expression(se, builder):
@@ -331,10 +331,10 @@ def emit_expression(se, builder):
          cv = context.get(var,builder)
          if "EQU" in op:
              if context.is_pointer(cv):
-                v = explicit_cast(v,cv.type.pointee,builder)
+                v = cast.explicit_cast(v,cv.type.pointee,builder)
                 builder.store(v,cv)
              else:
-                v = explicit_cast(v,cv.type,builder)
+                v = cast.explicit_cast(v,cv.type,builder)
                 context.set(var,v)
              return v
  
@@ -345,7 +345,7 @@ def emit_expression(se, builder):
             ct = cv
          else:
             ct = cv.type
-         v,cv,signed,flo = auto_cast(v,cv,builder)
+         v,cv,signed,flo = cast.auto_cast(v,cv,builder)
 
          if "PLUSEQU" in op:
             if flo:
@@ -400,7 +400,7 @@ def emit_expression(se, builder):
          else:
             assert(False)
 
-         v = explicit_cast(v,ct,builder)
+         v = cast.explicit_cast(v,ct,builder)
          cv = context.get(var,builder)
          if context.is_pointer(cv):
             cv = builder.store(v,cv)
@@ -469,7 +469,7 @@ def emit_statement(s,builder):
        init_context = context.current()
 
        cond = emit_expression(s["Expression"][0],builder)
-       cond = explicit_cast(cond,ir.IntType(1),builder)
+       cond = cast.explicit_cast(cond,ir.IntType(1),builder)
 
        true_block = builder.append_basic_block()
        end_block = builder.append_basic_block()
@@ -562,7 +562,7 @@ def emit_statement(s,builder):
        return
    if "IF" in s:
        c = emit_par_expression(s["ParExpression"][0],builder)
-       c = explicit_cast(c,ir.IntType(1),builder)
+       c = cast.explicit_cast(c,ir.IntType(1),builder)
        st_then = s["Statement"][0]
 
        old_context = context.push(False)
@@ -627,129 +627,6 @@ def emit_statement(s,builder):
    print json.dumps(s)
    assert(False)
 
-def type_info(a):
-   signed = False
-   flo = False
-   if "i" in str(a):
-     t = int(str(a).split("i")[1].split(' ')[0])
-   elif "s" in str(a):
-     t = int(str(a).split("s")[1].split(' ')[0])
-     signed = True
-   elif "float" in str(a):
-     t = 32
-     flo = True
-   elif "double" in str(a):
-     t = 64
-     flo = True
-   return (signed,flo,t)
-
-def auto_cast(a,b,builder,i=None,single=False,force_sign=None):
-   asigned, afloat, at = type_info(a.type)
-   bsigned, bfloat, bt = type_info(b.type)
-
-   if at == 1 or bt == 1:
-      assert(at == bt)
-      return (a,b,False,False) #no auto cast to integer on boolean
-
-   #TODO, this is all wrong need doubles for 64bit ints or other doubles
-   if afloat or bfloat:
-      if not afloat:
-        if asigned:
-          if at > 32:
-             a = builder.sitofp(a,ir.DoubleType())
-          else:
-             a = builder.sitofp(a,ir.FloatType())
-        else:
-          if at > 32:
-             a = builder.uitofp(a,ir.DoubleType())
-          else:
-             a = builder.uitofp(a,ir.FloatType())
-      elif not bfloat:
-        if bsigned:
-          if bt > 32:
-             b = builder.sitofp(b,ir.DoubleType())
-          else:
-             b = builder.sitofp(b,ir.FloatType())
-        else:
-          if bt > 32:
-             b = builder.uitofp(b,ir.DoubleType())
-          else:
-             b = builder.uitofp(b,ir.FloatType())
-      else: #both are floats
-        if at > bt:
-           b = builder.fpext(b,ir.DoubleType())
-        elif at < bt:
-           a = builder.fpext(a,ir.DoubleType())
-      return (a,b,False,True)
-
-   if force_sign=="i" or (asigned and not bsigned):
-     a = builder.tounsigned(a)
-
-   if single==False and (force_sign=="i" or (bsigned and not asigned)):
-     b = builder.tounsigned(b)
-
-   if force_sign=="s":
-     a = builder.tosigned(a)
-     if single==False:
-        b = builder.tosigned(b)
-
-   signed = (asigned and bsigned and force_sign != "i") or force_sign == "s"
-   if signed:
-      tfunc = SIntType
-      efunc = builder.sext
-   else:
-      tfunc = ir.IntType
-      efunc = builder.zext
-
-   if at < bt and (i != None or i < bt):
-     a = efunc(a,tfunc(bt))
-   elif at < i  and i != None:
-     a = efunc(a,tfunc(i))
-   
-   if single==False:
-     if bt < at and (i != None or i < at):
-       b = efunc(b,tfunc(at))
-     elif bt < i  and i != None:
-       b = efunc(b,tfunc(i))
-
-   return (a,b,signed,False)
-
-def explicit_cast(a,t,builder):
-   asigned, afloat, at = type_info(a.type)
-   tsigned, tfloat, tt = type_info(t)
-
-   if tt == 1:
-      if at == 1:
-         return a
-
-      if afloat:
-         return builder.fcmp_unordered("!=",a,ir.Constant(ir.FloatType(),0))
-      return builder.icmp_unsigned("!=",a,ir.Constant(a.type,0))
-
-   if tfloat:
-      if afloat:
-         return a
-      if asigned:
-         return builder.sitofp(a,ir.FloatType())
-      return builder.uitofp(a,ir.FloatType())
-
-   if tt < at:
-      return builder.trunc(a,t)
-
-   if tt > at:
-      if asigned:
-         return builder.sext(a,t)
-      return builder.zext(a,t)
-
-   if tsigned:
-      if afloat:
-         return builder.fptosi(a,t)
-      else:
-         return builder.tosigned(a)
-   if afloat:
-      return builder.fptoui(a,t)
-   return builder.tounsigned(a)
-
 static_ctors = []
 ctors = []
 def emit_member_decl(t,static,st,module,pas):
@@ -779,7 +656,7 @@ def emit_member_decl(t,static,st,module,pas):
       context.push(False)
 
       val = emit_expression(st["VariableInitializer"][0]["Expression"][0],builder)
-      val = explicit_cast(val,t,builder)
+      val = cast.explicit_cast(val,t,builder)
       var = context.get(ident,builder)
       if context.is_pointer(var):
          builder.store(val,var)
@@ -797,9 +674,9 @@ def emit_local_decl(t,lv,builder):
       val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],builder)
       var = context.get(lv["Identifier"][0],builder)
       if isinstance(var,ir.Type):
-         context.set(lv["Identifier"][0], explicit_cast(val,var,builder))
+         context.set(lv["Identifier"][0], cast.explicit_cast(val,var,builder))
       else:
-         context.set(lv["Identifier"][0], explicit_cast(val,var.type,builder))
+         context.set(lv["Identifier"][0], cast.explicit_cast(val,var.type,builder))
 
 
 def get_type(t):
