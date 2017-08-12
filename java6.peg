@@ -281,8 +281,9 @@ VariableDeclarators
     = VariableDeclarator (COMMA VariableDeclarator)*
     ;
 
-VariableDeclarator
-    = Identifier Dim* (EQU VariableInitializer)?
+VariableDeclarator   
+    = Identifier LPAR RPAR
+    / Identifier Dim* (EQU VariableInitializer)?
     ;
 
 //-------------------------------------------------------------------------

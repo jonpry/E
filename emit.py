@@ -2,6 +2,7 @@
 import os
 import codecs
 import json
+import sys
 from collections import OrderedDict
 from llvmlite import ir
 from llvmlite import binding
@@ -635,13 +636,13 @@ def emit_member_decl(t,static,st,module,pas):
    ident = st["Identifier"][0]
    if pas == "decl_type":
       if static:
-         ident = context.fqid() + "." + ident
+         ident = context.classs.fqid() + "." + ident
          data = ir.GlobalVariable(module,t,ident)
          data.initializer = ir.Constant(t,0)
          context.globals.create(ident,data)
          return data
       else:
-         context.create_member(t,ident)
+         context.classs.create_member(t,ident)
 
    if pas == "method_body" or pas == "method_phi":
       if "VariableInitializer" not in st:
@@ -668,7 +669,10 @@ def emit_member_decl(t,static,st,module,pas):
          context.thiss.pop()
 
 def emit_local_decl(t,lv,builder):
-   context.create(lv["Identifier"][0], t)
+   if isinstance(t,ir.Aggregate):
+      context.create(lv["Identifier"][0], builder.alloca(t))
+   else:
+      context.create(lv["Identifier"][0], t)
 
    if "VariableInitializer" in lv:
       val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],builder)
@@ -680,29 +684,34 @@ def emit_local_decl(t,lv,builder):
 
 
 def get_type(t):
-   assert("BasicType" in t)
-   if "uint" in t["BasicType"][0]:
-     return ir.IntType(32)
-   if "int" in t["BasicType"][0]:
-     return SIntType(32)
-   if "ulong" in t["BasicType"][0]:
-     return ir.IntType(64)
-   if "long" in t["BasicType"][0]:
-     return SIntType(64)
-   if "ushort" in t["BasicType"][0]:
-     return ir.IntType(16)
-   if "short" in t["BasicType"][0]:
-     return SIntType(16)
-   if "uchar" in t["BasicType"][0]:
-     return ir.IntType(8)
-   if "char" in t["BasicType"][0]:
-     return SIntType(8)
-   if "float" in t["BasicType"][0]:
-     return ir.FloatType()
-   if "double" in t["BasicType"][0]:
-     return ir.DoubleType()
-   if "boolean" in t["BasicType"][0]:
-     return ir.IntType(1)
+   if "BasicType" in t:
+     if "uint" in t["BasicType"][0]:
+       return ir.IntType(32)
+     if "int" in t["BasicType"][0]:
+       return SIntType(32)
+     if "ulong" in t["BasicType"][0]:
+       return ir.IntType(64)
+     if "long" in t["BasicType"][0]:
+       return SIntType(64)
+     if "ushort" in t["BasicType"][0]:
+       return ir.IntType(16)
+     if "short" in t["BasicType"][0]:
+       return SIntType(16)
+     if "uchar" in t["BasicType"][0]:
+       return ir.IntType(8)
+     if "char" in t["BasicType"][0]:
+       return SIntType(8)
+     if "float" in t["BasicType"][0]:
+       return ir.FloatType()
+     if "double" in t["BasicType"][0]:
+       return ir.DoubleType()
+     if "boolean" in t["BasicType"][0]:
+       return ir.IntType(1)
+   if "ClassType" in t:
+     return context.classs.get_class_type(t["ClassType"][0]["Identifier"][0])
+
+   print json.dumps(t)
+   assert(False)
 
 
 def emit_local_variable_decl(lv,builder):
@@ -731,14 +740,13 @@ def emit_method(method,static,native,module,pas):
         tv = method["TypeOrVoid"][0]
         if "Type" in tv:
            rtype = get_type(tv["Type"][0])
-      else:
-        rtype = ir.VoidType()
+
       fps = method["FormalParameters"][0]
       types = []
       names = []
 
       if not static and not native:
-         types.append(context.get_type().as_pointer())
+         types.append(context.classs.get_type().as_pointer())
          names.append("this")
       
       if "FormalParameterList" in fps:
@@ -749,7 +757,7 @@ def emit_method(method,static,native,module,pas):
            names.append(fp["VariableDeclaratorId"][0]["Identifier"][0])
 
       native_name = name
-      name = context.fqid() + "." + name
+      name = context.classs.fqid() + "." + name
       typo = ir.FunctionType(rtype, types, False)
       func = ir.Function(module, typo, native_name if native else name)
       func.attributes.add("noinline")
@@ -817,30 +825,31 @@ def emit_class(cls,module,pas):
    body = cls["ClassBody"][0]
    decls = body["ClassBodyDeclaration"]
    ident = cls["Identifier"][0]
-   context.push_class(ident)
+   context.classs.push(ident)
 
    if pas == "decl_type":
-      context.set_type(None,ident)
+      context.classs.set_type(None,ident)
 
    if pas == "decl_methods":
-      typo = ir.FunctionType(ir.VoidType(), [context.get_type().as_pointer()], False)
-      func = ir.Function(module, typo, context.fqid() + ".init")
+      typo = ir.FunctionType(ir.VoidType(), [context.classs.get_type().as_pointer()], False)
+      func = ir.Function(module, typo, context.classs.fqid() + ".init")
+      sys.stdout.flush()
       func.attributes.add("noinline")
-      context.set_init(func)
+      context.classs.set_init(func)
 
       typo = ir.FunctionType(ir.VoidType(), [], False)
-      func = ir.Function(module, typo, context.fqid() + ".static.init")
+      func = ir.Function(module, typo, context.classs.fqid() + ".static.init")
       func.attributes.add("noinline")
-      context.set_static_init(func)
+      context.classs.set_static_init(func)
       static_ctors.append(func)
 
    if pas == "method_body" or pas == "method_phi":
-      func = context.get_init()
+      func = context.classs.get_init()
       func.blocks = []
       block = func.append_basic_block('entry')
       init = Builder(block)
 
-      func = context.get_static_init()
+      func = context.classs.get_static_init()
       func.blocks = []
       block = func.append_basic_block('entry')
       static_init = Builder(block)
@@ -866,15 +875,15 @@ def emit_class(cls,module,pas):
         assert(False)
 
    if pas == "decl_type":
-      t = module.context.get_identified_type(context.fqid())
-      types = context.get_member_types()
+      t = module.context.get_identified_type(context.classs.fqid())
+      types = context.classs.get_member_types()
       t.set_body(*types)
-      context.set_type(t,ident)
+      context.classs.set_type(t,ident)
    if pas == "method_body" or pas == "method_phi":
       init.ret_void()
       static_init.ret_void()
 
-   context.pop_class()
+   context.classs.pop()
 
 def make_bytearray(buf):
     """

@@ -42,7 +42,7 @@ class funcs:
    def get(name):
       if name in funcs.funcs:
          return funcs.funcs[name]
-      return funcs.funcs[fqid() + "." + name]
+      return funcs.funcs[classs.fqid() + "." + name]
 
 class globals:
    globals = {}
@@ -97,62 +97,94 @@ class continues:
    def get():
       return continues.continues[-1]
 
+class classs:
+   clzs = []
+   clz = {'class_members' : {}}
+   class_stack = [{}]
+
+   @staticmethod
+   def set_type(t,name):
+      global package
+      classs.clz['class_type'] = t;
+      classs.clz['class_name'] = package + "." + name;
+
+   @staticmethod
+   def fqid():
+      return classs.clz['class_name']
+
+   @staticmethod   
+   def new():
+      classs.clz = {'class_members' : {}, 'class_type' : None, 'class_name' : '', 'static_init' : None, 'init' : None}
+      classs.clzs.append(classs.clz)
+      return classs.clz
+
+   @staticmethod   
+   def push(name):
+      classs.clz = classs.get_class(name)
+      if classs.clz == None:
+         classs.clz = classs.new()
+      classs.class_stack.append(classs.clz)
+
+   @staticmethod   
+   def pop():
+      classs.class_stack.pop()
+      clz = classs.class_stack[-1]
+
+   @staticmethod   
+   def get_type():
+      return classs.clz['class_type']
+
+   @staticmethod   
+   def get_class(ident):
+      global package
+      ident = package + "." + ident
+      for cls in classs.clzs:
+         if cls["class_name"] == ident:
+           return cls
+      return None
+ 
+   @staticmethod   
+   def get_class_type(ident):
+      cls = classs.get_class(ident)
+      return cls["class_type"]
+
+   @staticmethod   
+   def create_member(t,name):
+      assert(name not in classs.clz['class_members'])
+      classs.clz['class_members'][name] = t
+
+   @staticmethod   
+   def get_member_types():
+      t = []
+      for k,v in classs.clz['class_members'].items():
+        t.append(v)
+      return t
+
+   @staticmethod   
+   def set_static_init(func):
+      classs.clz['static_init'] = func
+
+   @staticmethod   
+   def set_init(func):
+      classs.clz['init'] = func
+
+   @staticmethod   
+   def get_static_init():
+      return classs.clz['static_init']
+
+   @staticmethod   
+   def get_init():
+      return classs.clz['init']
+
 def set_package(p):
    global package
    package = p
-
-def set_type(t,name):
-   global clz
-   clz['class_type'] = t;
-   clz['class_name'] = name;
-
-def fqid():
-   global package
-   global clz
-   return package + "." + clz['class_name']
-
-clzs = []
-def new_class():
-   global clzs
-   clz = {'class_members' : {}, 'class_type' : None, 'class_name' : '', 'static_init' : None, 'init' : None}
-   clzs.append(clz)
-   return clz
-
-clz = {'class_members' : {}}
-class_stack = [{}]
-class_pos = 0
-
-def push_class(name):
-   global clz
-   global class_stack
-   global class_pos
-   class_pos += 1
-   if class_pos >= len(class_stack):
-      clz = new_class()
-      class_stack.append({name : clz})
-      return
-   if name in class_stack[class_pos]: 
-      clz = class_stack[class_pos][name]
-      return
-   clz = new_class()
-   class_stack[class_pos][name] = clz
-
-
-def pop_class():
-   global clz
-   global class_pos
-   clz = new_class() #TODO
-   class_pos-=1
-
-def get_type():
-   global clz
-   return clz['class_type']
 
 def get(var,builder=None):
    global context
    global clz
 
-   fq = fqid() + "." + var
+   fq = classs.fqid() + "." + var
    if var in context:
       return context[var]
    if fq in globals.globals:
@@ -161,8 +193,8 @@ def get(var,builder=None):
       return None
 
    this = thiss.thiss[-1]
-   if var in clz['class_members']:
-      i = clz['class_members'].keys().index(var)
+   if var in classs.clz['class_members']:
+      i = classs.clz['class_members'].keys().index(var)
       #print this
       v = builder.gep(this,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),i)])
       return v
@@ -173,34 +205,6 @@ def set(var, val, builder=None):
       return 
    print var
    assert(False)
-
-def create_member(t,name):
-   global clz
-   assert(name not in clz['class_members'])
-   clz['class_members'][name] = t
-
-def get_member_types():
-   global clz
-   t = []
-   for k,v in clz['class_members'].items():
-     t.append(v)
-   return t
-
-def set_static_init(func):
-   global clz
-   clz['static_init'] = func
-
-def set_init(func):
-   global clz
-   clz['init'] = func
-
-def get_static_init():
-   global clz
-   return clz['static_init']
-
-def get_init():
-   global clz
-   return clz['init']
 
 def create(var,v):
    global context

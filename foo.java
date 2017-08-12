@@ -219,6 +219,12 @@ public final class TestClass {
         print_int(j);
     }
 
+    public static void instance_test(int j){
+        int i=0;
+        ClassB theB();
+        i++;
+    }
+
     public static int main() throws Exception {
         constant_int_test();
         constant_float_test();
@@ -229,6 +235,7 @@ public final class TestClass {
         multiple_parm_test(1,2);
         while_test(10);
         do_while_test(10);
+        instance_test(10);
 
         float r=1;
         r += 1;
