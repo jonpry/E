@@ -930,9 +930,9 @@ def emit_print_funcs(module):
     context.funcs.create("printf",{"func" : fn, "names" : [], "ret" : ir.IntType(32), "static" : True})
 
     emit_print_func(module, "print_uint", "%u", ir.IntType(32))
-    emit_print_func(module, "print_ulong", "%ul", ir.IntType(64))
+    emit_print_func(module, "print_ulong", "%lu", ir.IntType(64))
     emit_print_func(module, "print_int", "%d", ir.IntType(32))
-    emit_print_func(module, "print_long", "%dl", ir.IntType(64))
+    emit_print_func(module, "print_long", "%ld", ir.IntType(64))
     emit_print_func(module, "print_float", "%f", ir.DoubleType())
     emit_print_func(module, "print_double", "%f", ir.DoubleType())
 

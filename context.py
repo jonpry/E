@@ -135,13 +135,21 @@ class classs:
       return classs.clz['class_type']
 
    @staticmethod   
-   def get_class(ident):
-      global package
-      ident = package + "." + ident
+   def get_class_fq(ident):
       for cls in classs.clzs:
          if cls["class_name"] == ident:
            return cls
       return None
+
+
+   @staticmethod   
+   def get_class(ident):
+      global package
+      c = classs.get_class_fq(ident)
+      if c != None:
+         return c
+      ident = package + "." + ident
+      return classs.get_class_fq(ident)
  
    @staticmethod   
    def get_class_type(ident):
@@ -180,24 +188,39 @@ def set_package(p):
    global package
    package = p
 
-def get(var,builder=None):
-   global context
-   global clz
+def gep(ptr,this,var,builder):
+   if var in this['class_members']:
+      i = this['class_members'].keys().index(var)
+      #print this
+      v = builder.gep(ptr,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),i)])
+      return v
 
-   fq = classs.fqid() + "." + var
+def get_one(var,builder):
+   global context
+
    if var in context:
       return context[var]
+   fq = classs.fqid() + "." + var
    if fq in globals.globals:
       return globals.globals[fq]
    if len(thiss.thiss) == 0 or thiss.thiss[-1] == None:
       return None
 
    this = thiss.thiss[-1]
-   if var in classs.clz['class_members']:
-      i = classs.clz['class_members'].keys().index(var)
-      #print this
-      v = builder.gep(this,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),i)])
-      return v
+   return gep(this,classs.clz,var,builder)
+
+def get(var,builder=None):  
+   t = get_one(var,builder) 
+   if t != None:
+      return t
+
+   v = var.split(".")[0]
+   t = get_one(v,builder) 
+   if t != None:
+      return gep(t,classs.get_class(str(t.type).split("\"")[1]),var.split(".")[1],builder)
+   print var
+   print v
+   assert(False)
 
 def set(var, val, builder=None):
    if var in context:

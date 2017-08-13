@@ -222,6 +222,9 @@ public final class TestClass {
     public static void instance_test(int j){
         int i=0;
         ClassB theB();
+        theB.mBar=31;
+        theB.mBar++;
+        print_long(theB.mBar);
         i++;
     }
 
