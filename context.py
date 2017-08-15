@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import copy
+import sys
+import traceback
 from llvmlite import ir
 from collections import OrderedDict
 
@@ -42,7 +44,6 @@ class funcs:
    def get(name):
       if name in funcs.funcs:
          return funcs.funcs[name]
-      return funcs.funcs[classs.fqid() + "." + name]
 
 class globals:
    globals = {}
@@ -54,7 +55,7 @@ class globals:
 
    @staticmethod
    def get(name):
-     return globals.globals[fqid() + "." + name]
+     return globals.globals[name]
 
 class thiss:
    thiss = []
@@ -191,36 +192,62 @@ def set_package(p):
 def gep(ptr,this,var,builder):
    if var in this['class_members']:
       i = this['class_members'].keys().index(var)
+      #print "gep"
+      #print traceback.print_stack()
       #print this
       v = builder.gep(ptr,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),i)])
       return v
 
-def get_one(var,builder):
+def get_one(var,obj,objclz,builder):
    global context
 
    if var in context:
       return context[var]
-   fq = classs.fqid() + "." + var
-   if fq in globals.globals:
-      return globals.globals[fq]
-   if len(thiss.thiss) == 0 or thiss.thiss[-1] == None:
+
+   #print var
+   if funcs.get(var) != None:
+      #print "png"
+      return funcs.get(var)
+
+   if objclz == None:
       return None
 
-   this = thiss.thiss[-1]
-   return gep(this,classs.clz,var,builder)
+   fq = objclz["class_name"] + "." + var
+   #print var
+   #print objclz
+   #print fq
+   sys.stdout.flush()
+   if fq in globals.globals:
+      return globals.globals[fq]
+   if funcs.get(fq) != None:
+      return funcs.get(fq)
+
+   if obj==None:
+      return None
+   return gep(obj,objclz,var,builder)
 
 def get(var,builder=None):  
-   t = get_one(var,builder) 
-   if t != None:
-      return t
+   thistype = classs.clz
+   if len(thiss.thiss) == 0 or thiss.thiss[-1] == None:
+      thisvar = None
+   else:
+      thisvar = thiss.thiss[-1]
 
-   v = var.split(".")[0]
-   t = get_one(v,builder) 
-   if t != None:
-      return gep(t,classs.get_class(str(t.type).split("\"")[1]),var.split(".")[1],builder)
-   print var
-   print v
-   assert(False)
+   #print "type"
+   #print thistype
+
+   if get_one(var,thisvar,thistype,builder) != None:
+       return get_one(var,thisvar,thistype,builder)      
+   
+   var = var.split(".")
+   for i in range(len(var)):
+     v = var[i]    
+     e = get_one(v,thisvar,thistype,builder) 
+     if i == (len(var) - 1):
+        return e
+     thisvar = e
+     thistype = classs.get_class_fq(str(e.type).split("\"")[1])
+
 
 def set(var, val, builder=None):
    if var in context:

@@ -95,8 +95,8 @@ def emit_primary(p,builder):
          if "Arguments" in suf:
            a = suf["Arguments"][0]
            args = []
-           func = context.funcs.get(var)["func"]
-           static =  context.funcs.get(var)["static"]
+           func = context.get(var)["func"]
+           static =  context.get(var)["static"]
            if not static:
               assert(not context.funcs.current()["static"])
               args.append(builder.function.args[0]) #todo: check caller is not static
@@ -109,9 +109,10 @@ def emit_primary(p,builder):
                  args.append(e)
            return builder.call(func,args)
       else:
-         if context.is_pointer(context.get(var,builder)):
-            return builder.load(context.get(var,builder))
-         return context.get(var,builder)
+         t = context.get(var,builder)
+         if context.is_pointer(t):
+            return builder.load(t)
+         return t
    if "ParExpression" in p:
       v= emit_expression(p["ParExpression"][0]["Expression"][0],builder)
       return v
@@ -769,15 +770,15 @@ def emit_method(method,static,native,module,pas):
 
    assert(not native)
 
-   func = context.funcs.get(name)["func"]
+   func = context.get(name)["func"]
    context.push(True)
-   context.funcs.push(context.funcs.get(name))
+   context.funcs.push(context.get(name))
 
    if not static:
        context.thiss.push(func.args[0])
    for i in range(len(func.args)):
      arg = func.args[i]
-     context.create(context.funcs.get(name)["names"][i], arg)
+     context.create(context.get(name)["names"][i], arg)
 
    func.blocks = []
    block = func.append_basic_block('entry')
@@ -787,7 +788,7 @@ def emit_method(method,static,native,module,pas):
    for bs in methodbody["BlockStatements"][0]["BlockStatement"]:
       emit_blockstatement(bs,builder)
 
-   if context.funcs.get(name)["ret"] == ir.VoidType():
+   if context.get(name)["ret"] == ir.VoidType():
       builder.ret_void()
 
    if not static:
@@ -833,7 +834,6 @@ def emit_class(cls,module,pas):
    if pas == "decl_methods":
       typo = ir.FunctionType(ir.VoidType(), [context.classs.get_type().as_pointer()], False)
       func = ir.Function(module, typo, context.classs.fqid() + ".init")
-      sys.stdout.flush()
       func.attributes.add("noinline")
       context.classs.set_init(func)
 
@@ -913,7 +913,7 @@ def emit_print_func(module,name,fmt,typo):
 
     block = func.append_basic_block('entry')
     builder = Builder(block)
-    pfn = context.funcs.get("printf")["func"]
+    pfn = context.get("printf")["func"]
 
     #create global for string
     fmt_bytes = make_bytearray((fmt + '\n\00').encode('ascii'))
@@ -962,7 +962,7 @@ def emit_module(unit,pas):
       for f in static_ctors:
         builder.call(f,[])
 
-      builder.call(context.funcs.get("life.stel.e.test.TestClass.main")["func"],[])
+      builder.call(context.get("life.stel.e.test.TestClass.main")["func"],[])
 
       builder.ret_void()
 

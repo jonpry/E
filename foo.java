@@ -225,6 +225,7 @@ public final class TestClass {
         theB.mBar=31;
         theB.mBar++;
         print_long(theB.mBar);
+        print_int(theB.sBar);
         i++;
     }
 
