@@ -36,6 +36,11 @@ public final class ClassB {
        int x=0;
        mBar = x;
     }
+
+    public int member2(int j) throws Exception {
+        int i=111;
+        return j;
+    }
 }
 
 public final class TestClass {
@@ -224,6 +229,7 @@ public final class TestClass {
         ClassB theB();
         theB.mBar=31;
         theB.mBar++;
+        i=theB.member2(2);
         print_long(theB.mBar);
         print_int(theB.sBar);
         i++;

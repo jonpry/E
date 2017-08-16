@@ -95,11 +95,12 @@ def emit_primary(p,builder):
          if "Arguments" in suf:
            a = suf["Arguments"][0]
            args = []
-           func = context.get(var)["func"]
-           static =  context.get(var)["static"]
+           tup = context.get(var)
+           func = tup[0]["func"]
+           static =  tup[0]["static"]
            if not static:
-              assert(not context.funcs.current()["static"])
-              args.append(builder.function.args[0]) #todo: check caller is not static
+              assert(tup[1] != None)
+              args.append(tup[1]) #todo: check caller is not static
            if "Expression" in a:
               for i in range(len(a["Expression"])):
                  e = a["Expression"][i]
@@ -763,7 +764,7 @@ def emit_method(method,static,native,module,pas):
 
    assert(not native)
 
-   func = context.get(name)["func"]
+   func = context.get(name)[0]["func"]
    context.push(True)
    context.funcs.push(context.get(name))
 
@@ -771,7 +772,7 @@ def emit_method(method,static,native,module,pas):
        context.thiss.push(func.args[0])
    for i in range(len(func.args)):
      arg = func.args[i]
-     context.create(context.get(name)["names"][i], arg)
+     context.create(context.get(name)[0]["names"][i], arg)
 
    func.blocks = []
    block = func.append_basic_block('entry')
@@ -781,7 +782,7 @@ def emit_method(method,static,native,module,pas):
    for bs in methodbody["BlockStatements"][0]["BlockStatement"]:
       emit_blockstatement(bs,builder)
 
-   if context.get(name)["ret"] == ir.VoidType():
+   if context.get(name)[0]["ret"] == ir.VoidType():
       builder.ret_void()
 
    if not static:
@@ -916,7 +917,7 @@ def emit_print_func(module,name,fmt,typo):
 
     block = func.append_basic_block('entry')
     builder = Builder(block)
-    pfn = context.get("printf")["func"]
+    pfn = context.get("printf")[0]["func"]
 
     #create global for string
     fmt_bytes = make_bytearray((fmt + '\n\00').encode('ascii'))
@@ -965,7 +966,7 @@ def emit_module(unit,pas):
       for f in static_ctors:
         builder.call(f,[])
 
-      builder.call(context.get("life.stel.e.test.TestClass.main")["func"],[])
+      builder.call(context.get("life.stel.e.test.TestClass.main")[0]["func"],[])
 
       builder.ret_void()
 

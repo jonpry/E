@@ -219,7 +219,7 @@ def get_one(var,obj,objclz,builder):
    #print var
    if funcs.get(var) != None:
       #print "png"
-      return funcs.get(var)
+      return (funcs.get(var),None)
 
    if objclz == None:
       return None
@@ -232,7 +232,7 @@ def get_one(var,obj,objclz,builder):
 #   if fq in globals.globals:
 #      return globals.globals[fq]
    if funcs.get(fq) != None:
-      return funcs.get(fq)
+      return (funcs.get(fq),obj)
 
    if var in objclz["static_members"]:
       return gep(globals.get("static." + objclz["class_name"]),objclz,var,builder, True)
