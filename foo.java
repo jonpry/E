@@ -37,9 +37,12 @@ public final class ClassB {
        mBar = x;
     }
 
+    public native void print_int(int i);
+
     public int member2(int j) throws Exception {
         int i=111;
-        return j;
+        print_int(i);
+        return i+j;
     }
 }
 
@@ -232,6 +235,7 @@ public final class TestClass {
         i=theB.member2(2);
         print_long(theB.mBar);
         print_int(theB.sBar);
+        print_int(i);
         i++;
     }
 

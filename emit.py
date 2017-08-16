@@ -753,9 +753,11 @@ def emit_method(method,static,native,module,pas):
 
       native_name = name
       name = context.classs.fqid() + "." + name
-      typo = ir.FunctionType(rtype, types, False)
-      func = ir.Function(module, typo, native_name if native else name)
-      func.attributes.add("noinline")
+      func = context.funcs.get_native(native_name)
+      if not native or func == None:
+         typo = ir.FunctionType(rtype, types, False)
+         func = ir.Function(module, typo, native_name if native else name)
+         func.attributes.add("noinline")
       context.funcs.create(name,{"func" : func, "names" : names, "ret" : rtype, "static" : (static or native), "native" : native})
       return
 
