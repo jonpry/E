@@ -143,15 +143,15 @@ def emit_unary_expression(ue,builder):
       e = ue["PostfixOp"][0]
       ident = ue["Primary"][0]["QualifiedIdentifier"][0]
       t = context.get(ident,builder)
+      ot = t
       if context.is_pointer(t):
          t = builder.load(t)
       if "INC" in e:
          s = builder.add(t,ir.Constant(t.type,1))
       else:
          s = builder.sub(t,ir.Constant(t.type,1))
-      nt = context.get(ident,builder)
-      if context.is_pointer(nt):
-         builder.store(s,nt)
+      if context.is_pointer(ot):
+         builder.store(s,ot)
       else:
          context.set(ident,s)
       return t
@@ -636,14 +636,7 @@ def emit_member_decl(t,static,st,module,pas):
    global init
    ident = st["Identifier"][0]
    if pas == "decl_type":
-      if static:
-         ident = context.classs.fqid() + "." + ident
-         data = ir.GlobalVariable(module,t,ident)
-         data.initializer = ir.Constant(t,0)
-         context.globals.create(ident,data)
-         return data
-      else:
-         context.classs.create_member(t,ident)
+      context.classs.create_member(t,ident,static)
 
    if pas == "method_body" or pas == "method_phi":
       if "VariableInitializer" not in st:
@@ -747,7 +740,7 @@ def emit_method(method,static,native,module,pas):
       names = []
 
       if not static and not native:
-         types.append(context.classs.get_type().as_pointer())
+         types.append(context.classs.get_type(False).as_pointer())
          names.append("this")
       
       if "FormalParameterList" in fps:
@@ -829,10 +822,10 @@ def emit_class(cls,module,pas):
    context.classs.push(ident)
 
    if pas == "decl_type":
-      context.classs.set_type(None,ident)
+      context.classs.set_type(None,None,ident)
 
    if pas == "decl_methods":
-      typo = ir.FunctionType(ir.VoidType(), [context.classs.get_type().as_pointer()], False)
+      typo = ir.FunctionType(ir.VoidType(), [context.classs.get_type(False).as_pointer()], False)
       func = ir.Function(module, typo, context.classs.fqid() + ".init")
       func.attributes.add("noinline")
       context.classs.set_init(func)
@@ -876,9 +869,19 @@ def emit_class(cls,module,pas):
 
    if pas == "decl_type":
       t = module.context.get_identified_type(context.classs.fqid())
-      types = context.classs.get_member_types()
+      types = context.classs.get_member_types(False)
       t.set_body(*types)
-      context.classs.set_type(t,ident)
+
+      s = module.context.get_identified_type(context.classs.fqid() + ".static")
+      types = context.classs.get_member_types(True)
+      s.set_body(*types)
+
+      context.classs.set_type(t,s,ident)
+
+      ident = "static." + context.classs.fqid()
+      e = ir.GlobalVariable(module,context.classs.get_type(True),ident)
+      e.linkage = "internal"
+      context.globals.create(ident,e)
    if pas == "method_body" or pas == "method_phi":
       init.ret_void()
       static_init.ret_void()

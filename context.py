@@ -104,9 +104,10 @@ class classs:
    class_stack = [{}]
 
    @staticmethod
-   def set_type(t,name):
+   def set_type(t,s,name):
       global package
       classs.clz['class_type'] = t;
+      classs.clz['static_type'] = s;
       classs.clz['class_name'] = package + "." + name;
 
    @staticmethod
@@ -115,7 +116,7 @@ class classs:
 
    @staticmethod   
    def new():
-      classs.clz = {'class_members' : {}, 'class_type' : None, 'class_name' : '', 'static_init' : None, 'init' : None}
+      classs.clz = {'class_members' : {}, "static_members" : {}, 'class_type' : None, "static_type" : None, 'class_name' : '', 'static_init' : None, 'init' : None}
       classs.clzs.append(classs.clz)
       return classs.clz
 
@@ -132,7 +133,9 @@ class classs:
       clz = classs.class_stack[-1]
 
    @staticmethod   
-   def get_type():
+   def get_type(static):
+      if static:
+         return classs.clz['static_type']
       return classs.clz['class_type']
 
    @staticmethod   
@@ -158,14 +161,21 @@ class classs:
       return cls["class_type"]
 
    @staticmethod   
-   def create_member(t,name):
-      assert(name not in classs.clz['class_members'])
-      classs.clz['class_members'][name] = t
+   def create_member(t,name,static):
+      if static:
+         assert(name not in classs.clz['static_members'])
+         classs.clz['static_members'][name] = t
+      else:
+         assert(name not in classs.clz['class_members'])
+         classs.clz['class_members'][name] = t
 
    @staticmethod   
-   def get_member_types():
+   def get_member_types(static):
+      src = "class_members"
+      if static:
+         src = "static_members"
       t = []
-      for k,v in classs.clz['class_members'].items():
+      for k,v in classs.clz[src].items():
         t.append(v)
       return t
 
@@ -189,9 +199,10 @@ def set_package(p):
    global package
    package = p
 
-def gep(ptr,this,var,builder):
-   if var in this['class_members']:
-      i = this['class_members'].keys().index(var)
+def gep(ptr,this,var,builder,static):
+   src = "static_members" if static else "class_members"
+   if var in this[src]:
+      i = this[src].keys().index(var)
       #print "gep"
       #print traceback.print_stack()
       #print this
@@ -217,14 +228,17 @@ def get_one(var,obj,objclz,builder):
    #print objclz
    #print fq
    sys.stdout.flush()
-   if fq in globals.globals:
-      return globals.globals[fq]
+#   if fq in globals.globals:
+#      return globals.globals[fq]
    if funcs.get(fq) != None:
       return funcs.get(fq)
 
+   if var in objclz["static_members"]:
+      return gep(globals.get("static." + objclz["class_name"]),objclz,var,builder, True)
+       
    if obj==None:
       return None
-   return gep(obj,objclz,var,builder)
+   return gep(obj,objclz,var,builder, False)
 
 def get(var,builder=None):  
    thistype = classs.clz
