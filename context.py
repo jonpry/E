@@ -200,6 +200,7 @@ def set_package(p):
    package = p
 
 def gep(ptr,this,var,builder,static):
+   #print traceback.print_stack()
    src = "static_members" if static else "class_members"
    if var in this[src]:
       i = this[src].keys().index(var)
@@ -250,8 +251,9 @@ def get(var,builder=None):
    #print "type"
    #print thistype
 
-   if get_one(var,thisvar,thistype,builder) != None:
-       return get_one(var,thisvar,thistype,builder)      
+   t = get_one(var,thisvar,thistype,builder)
+   if t != None:
+       return t      
    
    var = var.split(".")
    for i in range(len(var)):
