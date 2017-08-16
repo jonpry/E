@@ -261,8 +261,11 @@ def get(var,builder=None):
      e = get_one(v,thisvar,thistype,builder) 
      if i == (len(var) - 1):
         return e
-     thisvar = e
-     thistype = classs.get_class_fq(str(e.type).split("\"")[1])
+     if e == None and i==0: #could be a class name
+       thistype = classs.get_class_fq(package + "." + v)
+     else:
+       thisvar = e
+       thistype = classs.get_class_fq(str(e.type).split("\"")[1])
 
 
 def set(var, val, builder=None):

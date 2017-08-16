@@ -41,7 +41,7 @@ public final class ClassB {
 
     public int member2(int j) throws Exception {
         int i=111;
-        print_int(i);
+        TestClass.print_int(i);
         return i+j;
     }
 }
