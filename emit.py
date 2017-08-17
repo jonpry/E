@@ -430,7 +430,7 @@ def emit_for_update(fu,builder):
 init_ctx = {}
 for_ctx = {}
 
-def emit_statement(s,builder):
+def emit_statement(s,pas,builder):
    global init_ctx, for_ctx
 
    if "StatementExpression" in s:
@@ -441,7 +441,7 @@ def emit_statement(s,builder):
        context.push(False)
        block = s["Block"][0]
        for bs in block["BlockStatements"][0]["BlockStatement"]:
-          emit_blockstatement(bs,builder)
+          emit_blockstatement(bs,pas,builder)
        context.pop()
        return
    if "FOR" in s or "WHILE" in s:
@@ -491,7 +491,7 @@ def emit_statement(s,builder):
        context.breaks.push((end_block,breaks))
        context.continues.push((update_block,continues))
 
-       emit_statement(s["Statement"][0],builder)
+       emit_statement(s["Statement"][0],pas,builder)
        builder.branch(update_block)
        last_block = builder.block
        builder.position_at_end(update_block)
@@ -577,7 +577,7 @@ def emit_statement(s,builder):
 
        builder.cbranch(c,true_block,false_block)
        builder.position_at_end(true_block)
-       emit_statement(st_then,builder)
+       emit_statement(st_then,pas,builder)
        true_context = context.pop()
        has_phi = True
        context.push(False,old_context)
@@ -590,7 +590,7 @@ def emit_statement(s,builder):
        builder.position_at_end(false_block)
        if len(s["Statement"]) > 1:
           st_otherwise = s["Statement"][1]
-          emit_statement(st_otherwise,builder)
+          emit_statement(st_otherwise,pas,builder)
        false_context = context.pop()
        false_block = builder.block
        if not builder.block.is_terminated:
@@ -663,9 +663,17 @@ def emit_member_decl(t,static,st,module,pas):
       if not static:
          context.thiss.pop()
 
-def emit_local_decl(t,lv,builder):
+def emit_local_decl(t,lv,pas,builder):
    if isinstance(t,ir.Aggregate):
-      context.create(lv["Identifier"][0], builder.alloca(t))
+      nid = builder.block.name + "." + lv["Identifier"][0]
+      if pas == "method_phi":
+          context.create(lv["Identifier"][0], builder.alloca(t))
+          context.funcs.get(builder.function.name)["allocs"][nid] = t
+      elif pas == "method_body":
+          var = context.get(nid)
+          context.create(lv["Identifier"][0], var)
+      else:
+          assert(False)
    else:
       context.create(lv["Identifier"][0], t)
 
@@ -713,17 +721,17 @@ def get_type(t):
    assert(False)
 
 
-def emit_local_variable_decl(lv,builder):
+def emit_local_variable_decl(lv,pas,builder):
    t = get_type(lv["Type"][0])
    l = lv["VariableDeclarators"][0]["VariableDeclarator"]
    for e in l:
-      emit_local_decl(t,e,builder)
+      emit_local_decl(t,e,pas,builder)
 
-def emit_blockstatement(bs,builder):
+def emit_blockstatement(bs,pas,builder):
    if "Statement" in bs:
-     return emit_statement(bs["Statement"][0],builder)
+     return emit_statement(bs["Statement"][0],pas,builder)
    if "LocalVariableDeclarationStatement" in bs:
-     return emit_local_variable_decl(bs["LocalVariableDeclarationStatement"][0],builder)
+     return emit_local_variable_decl(bs["LocalVariableDeclarationStatement"][0],pas,builder)
    assert(False)
 
 def reset_func(func):
@@ -768,7 +776,7 @@ def emit_method(method,static,native,constructor,module,pas):
          typo = ir.FunctionType(rtype, types, False)
          func = ir.Function(module, typo, native_name if native else name)
          func.attributes.add("noinline")
-      context.funcs.create(name,{"func" : func, "names" : names, "ret" : rtype, "static" : (static or native), "native" : native})
+      context.funcs.create(name,{"func" : func, "names" : names, "ret" : rtype, "static" : (static or native), "native" : native, "allocs" : {}})
       return
 
    if "MethodBody" not in method:
@@ -790,12 +798,17 @@ def emit_method(method,static,native,constructor,module,pas):
    block = func.append_basic_block('bb')
    builder = Builder(block)
 
+   if pas == "method_body":
+      allocs = context.get(name)[0]["allocs"]
+      for k,v in allocs.items():
+          context.create(k,builder.alloca(v))
+
    if constructor:
        builder.call(context.classs.get_init(),[func.args[0]])
 
    methodbody = method["MethodBody"][0]
    for bs in methodbody["BlockStatements"][0]["BlockStatement"]:
-      emit_blockstatement(bs,builder)
+      emit_blockstatement(bs,pas,builder)
 
    if context.get(name)[0]["ret"] == ir.VoidType():
       builder.ret_void()
@@ -877,7 +890,7 @@ def emit_class(cls,module,pas):
                 context.thiss.push(init.function.args[0])
              block = decl["Block"][0]
              for bs in block["BlockStatements"][0]["BlockStatement"]:
-                emit_blockstatement(bs,builder)
+                emit_blockstatement(bs,pas,builder)
              if not static:
                 context.thiss.pop()
              context.pop()
@@ -929,7 +942,7 @@ def emit_print_func(module,name,fmt,typo):
        fnty = ir.FunctionType(ir.VoidType(), [typo])
        func = ir.Function(module, fnty, name=name)
        func.attributes.add("noinline")
-       context.funcs.create(name,{"func" : func, "names" : ["v"], "ret" : ir.VoidType(), "static" : True, "native" : True})
+       context.funcs.create(name,{"func" : func, "names" : ["v"], "ret" : ir.VoidType(), "static" : True, "native" : True, "allocs" : {}})
 
     block = func.append_basic_block('bb')
     builder = Builder(block)
@@ -947,7 +960,7 @@ def emit_print_func(module,name,fmt,typo):
 def emit_print_funcs(module):
     fnty = ir.FunctionType(ir.IntType(32), [ir.IntType(8).as_pointer()], var_arg=True)
     fn = ir.Function(module, fnty, name="printf")
-    context.funcs.create("printf",{"func" : fn, "names" : [], "ret" : ir.IntType(32), "static" : True})
+    context.funcs.create("printf",{"func" : fn, "names" : [], "ret" : ir.IntType(32), "static" : True, "allocs" : {}})
 
     emit_print_func(module, "print_uint", "%u", ir.IntType(32))
     emit_print_func(module, "print_ulong", "%lu", ir.IntType(64))
