@@ -732,7 +732,7 @@ def reset_func(func):
    func.args = tuple([ir.Argument(func, t)
                            for t in func.ftype.args])
 
-def emit_method(method,static,native,module,pas):
+def emit_method(method,static,native,constructor,module,pas):
    name = method["Identifier"][0]
 
    if pas == "decl_type":
@@ -790,6 +790,9 @@ def emit_method(method,static,native,module,pas):
    block = func.append_basic_block('bb')
    builder = Builder(block)
 
+   if constructor:
+       builder.call(context.classs.get_init(),[func.args[0]])
+
    methodbody = method["MethodBody"][0]
    for bs in methodbody["BlockStatements"][0]["BlockStatement"]:
       emit_blockstatement(bs,builder)
@@ -811,9 +814,9 @@ def emit_member(member,module,pas):
       native = "native" in mods;
 
    if "MethodDeclarator" in member:
-      return emit_method(member["MethodDeclarator"][0],static,native,module,pas)
+      return emit_method(member["MethodDeclarator"][0],static,native,False,module,pas)
    if "ConstructorDeclarator" in member:
-      return emit_method(member["ConstructorDeclarator"][0],False,False,module,pas)
+      return emit_method(member["ConstructorDeclarator"][0],False,False,True,module,pas)
 
    if "VariableDeclarators" in member:
       t = get_type(member["Type"][0])
