@@ -32,7 +32,7 @@ public final class ClassB {
        mBar = x;
     }
 
-    public void MlassB(){
+    public ClassB(){
        int x=0;
        mBar = x;
     }

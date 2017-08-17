@@ -669,6 +669,10 @@ def emit_local_decl(t,lv,builder):
    else:
       context.create(lv["Identifier"][0], t)
 
+   #if "LPAR" in lv: #Constructor
+   #   print json.dumps(lv)
+   #   assert(False)
+
    if "VariableInitializer" in lv:
       val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],builder)
       var = context.get(lv["Identifier"][0],builder)
@@ -721,6 +725,12 @@ def emit_blockstatement(bs,builder):
    if "LocalVariableDeclarationStatement" in bs:
      return emit_local_variable_decl(bs["LocalVariableDeclarationStatement"][0],builder)
    assert(False)
+
+def reset_func(func):
+   func.blocks = []
+   func.scope = ir._utils.NameScope()
+   func.args = tuple([ir.Argument(func, t)
+                           for t in func.ftype.args])
 
 def emit_method(method,static,native,module,pas):
    name = method["Identifier"][0]
@@ -775,8 +785,8 @@ def emit_method(method,static,native,module,pas):
    for i in range(len(func.args)):
      arg = func.args[i]
      context.create(context.get(name)[0]["names"][i], arg)
-
-   func.blocks = []
+    
+   reset_func(func)
    block = func.append_basic_block('entry')
    builder = Builder(block)
 
@@ -841,12 +851,13 @@ def emit_class(cls,module,pas):
 
    if pas == "method_body" or pas == "method_phi":
       func = context.classs.get_init()
-      func.blocks = []
+      reset_func(func)
+
       block = func.append_basic_block('entry')
       init = Builder(block)
 
       func = context.classs.get_static_init()
-      func.blocks = []
+      reset_func(func)
       block = func.append_basic_block('entry')
       static_init = Builder(block)
 
