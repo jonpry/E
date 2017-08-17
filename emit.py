@@ -84,6 +84,23 @@ def emit_literal(l,builder):
        return emit_float_literal(l["FloatLiteral"][0],builder)
    assert(False)
 
+def emit_call(tup,suf,builder):
+   a = suf["Arguments"][0]
+   args = []
+   func = tup[0]["func"]
+   static =  tup[0]["static"]
+   if not static:
+      assert(tup[1] != None)
+      args.append(tup[1]) #todo: check caller is not static
+   if "Expression" in a:
+      for i in range(len(a["Expression"])):
+          e = a["Expression"][i]
+          t = func.args[i if static else i+1]
+          e = emit_expression(e,builder)
+          e,foo,signed,flo = cast.auto_cast(e,t,builder,single=True,force_sign=str(t)[0])
+          args.append(e)
+   return builder.call(func,args)
+
 
 def emit_primary(p,builder):
    if "Literal" in p:
@@ -93,22 +110,8 @@ def emit_primary(p,builder):
       if "IdentifierSuffix" in p:
          suf = p["IdentifierSuffix"][0]
          if "Arguments" in suf:
-           a = suf["Arguments"][0]
-           args = []
            tup = context.get(var)
-           func = tup[0]["func"]
-           static =  tup[0]["static"]
-           if not static:
-              assert(tup[1] != None)
-              args.append(tup[1]) #todo: check caller is not static
-           if "Expression" in a:
-              for i in range(len(a["Expression"])):
-                 e = a["Expression"][i]
-                 t = func.args[i if static else i+1]
-                 e = emit_expression(e,builder)
-                 e,foo,signed,flo = cast.auto_cast(e,t,builder,single=True,force_sign=str(t)[0])
-                 args.append(e)
-           return builder.call(func,args)
+           return emit_call(tup,suf,builder)
       else:
          t = context.get(var,builder)
          if context.is_pointer(t):
@@ -677,9 +680,11 @@ def emit_local_decl(t,lv,pas,builder):
    else:
       context.create(lv["Identifier"][0], t)
 
-   #if "LPAR" in lv: #Constructor
-   #   print json.dumps(lv)
-   #   assert(False)
+   if "Arguments" in lv: #Constructor
+      t = str(t).split("\"")[1]
+      t += "." + t.split(".")[-1]
+      func = (context.get(t)[0],context.get(lv["Identifier"][0]))
+      emit_call(func,lv,builder)
 
    if "VariableInitializer" in lv:
       val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],builder)

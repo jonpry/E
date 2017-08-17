@@ -282,7 +282,7 @@ VariableDeclarators
     ;
 
 VariableDeclarator   
-    = Identifier LPAR RPAR
+    = Identifier Arguments
     / Identifier Dim* (EQU VariableInitializer)?
     ;
 
