@@ -452,7 +452,7 @@ def emit_statement(s,builder):
        init_context = context.push(False)
        init_block = builder.block
 
-       cond_block = builder.append_basic_block()
+       cond_block = builder.append_basic_block('bb')
        builder.branch(cond_block)
        builder.position_at_end(cond_block)
 
@@ -474,9 +474,9 @@ def emit_statement(s,builder):
        cond = emit_expression(s["Expression"][0],builder)
        cond = cast.explicit_cast(cond,ir.IntType(1),builder)
 
-       true_block = builder.append_basic_block()
-       end_block = builder.append_basic_block()
-       update_block = builder.append_basic_block()
+       true_block = builder.append_basic_block('bb')
+       end_block = builder.append_basic_block('bb')
+       update_block = builder.append_basic_block('bb')
  
        if do:
          cond = builder.or_(doreg,cond)
@@ -571,9 +571,9 @@ def emit_statement(s,builder):
        old_context = context.push(False)
        old_block = builder.block
 
-       true_block = builder.append_basic_block()
-       false_block = builder.append_basic_block()
-       end_block = builder.append_basic_block()
+       true_block = builder.append_basic_block('bb')
+       false_block = builder.append_basic_block('bb')
+       end_block = builder.append_basic_block('bb')
 
        builder.cbranch(c,true_block,false_block)
        builder.position_at_end(true_block)
@@ -787,7 +787,7 @@ def emit_method(method,static,native,module,pas):
      context.create(context.get(name)[0]["names"][i], arg)
     
    reset_func(func)
-   block = func.append_basic_block('entry')
+   block = func.append_basic_block('bb')
    builder = Builder(block)
 
    methodbody = method["MethodBody"][0]
@@ -853,12 +853,12 @@ def emit_class(cls,module,pas):
       func = context.classs.get_init()
       reset_func(func)
 
-      block = func.append_basic_block('entry')
+      block = func.append_basic_block('bb')
       init = Builder(block)
 
       func = context.classs.get_static_init()
       reset_func(func)
-      block = func.append_basic_block('entry')
+      block = func.append_basic_block('bb')
       static_init = Builder(block)
 
    for decl in decls:
@@ -928,7 +928,7 @@ def emit_print_func(module,name,fmt,typo):
        func.attributes.add("noinline")
        context.funcs.create(name,{"func" : func, "names" : ["v"], "ret" : ir.VoidType(), "static" : True, "native" : True})
 
-    block = func.append_basic_block('entry')
+    block = func.append_basic_block('bb')
     builder = Builder(block)
     pfn = context.get("printf")[0]["func"]
 
@@ -974,7 +974,7 @@ def emit_module(unit,pas):
       typo = ir.FunctionType(ir.VoidType(), [])
       func = ir.Function(module, typo, name="main")
       func.attributes.add("noinline")
-      block = func.append_basic_block('entry')
+      block = func.append_basic_block('bb')
       builder = Builder(block)
       for f in static_ctors:
         builder.call(f,[])
