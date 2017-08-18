@@ -675,6 +675,11 @@ def emit_local_decl(t,lv,pas,builder):
       elif pas == "method_body":
           var = context.get(nid)
           context.create(lv["Identifier"][0], var)
+          #lifetime management
+          sz = builder.gep(ir.Constant(t.as_pointer(),None),[ir.Constant(ir.IntType(32),1)])
+          sz = builder.ptrtoint(sz,ir.IntType(64))
+          var = builder.bitcast(var,ir.IntType(8).as_pointer())
+          builder.call(context.get("llvm.lifetime.start")[0]["func"], [sz, var])
       else:
           assert(False)
    else:
@@ -963,6 +968,16 @@ def emit_print_func(module,name,fmt,typo):
 
 
 def emit_print_funcs(module):
+    #intrinsics
+    fnty = ir.FunctionType(ir.VoidType(), [ir.IntType(64),ir.IntType(8).as_pointer()])
+    fn = ir.Function(module, fnty, name="llvm.lifetime.start")
+    context.funcs.create("llvm.lifetime.start",{"func" : fn, "names" : [], "ret" : ir.VoidType(), "static" : True, "allocs" : {}})
+
+    fnty = ir.FunctionType(ir.VoidType(), [ir.IntType(64),ir.IntType(8).as_pointer()])
+    fn = ir.Function(module, fnty, name="llvm.lifetime.end")
+    context.funcs.create("llvm.lifetime.end",{"func" : fn, "names" : [], "ret" : ir.VoidType(), "static" : True, "allocs" : {}})
+
+    #actual print stuff
     fnty = ir.FunctionType(ir.IntType(32), [ir.IntType(8).as_pointer()], var_arg=True)
     fn = ir.Function(module, fnty, name="printf")
     context.funcs.create("printf",{"func" : fn, "names" : [], "ret" : ir.IntType(32), "static" : True, "allocs" : {}})
