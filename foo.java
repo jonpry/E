@@ -21,7 +21,23 @@ import life.stel.e.another;
  * A multiline comment
  */
 
-public final class ClassB {
+public final class ClassC {
+    public int mInherited=4; 
+    public int mInherited2=4; 
+
+    public ClassC(){
+        mInherited2=5;
+    }
+
+    public int member2(int j) throws Exception {
+        int i=111;
+        TestClass.print_int(i);
+        return i+j;
+    }
+}
+
+
+public final class ClassB extends ClassC {
     public static int sFoo = 2;
     public static int sBar = 3;
     public ulong mBar=4; 

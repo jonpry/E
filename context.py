@@ -119,9 +119,13 @@ class classs:
    def fqid():
       return classs.clz['class_name']
 
+   @staticmethod
+   def set_class(c):
+      classs.clz = c
+
    @staticmethod   
    def new():
-      classs.clz = {'class_members' : {}, "static_members" : {}, 'class_type' : None, "static_type" : None, 'class_name' : '', 'static_init' : None, 'init' : None}
+      classs.clz = {'class_members' : {}, "static_members" : {}, 'extends' : None, 'class_type' : None, "static_type" : None, 'class_name' : '', 'static_init' : None, 'init' : None}
       classs.clzs.append(classs.clz)
       return classs.clz
 
@@ -138,10 +142,29 @@ class classs:
       clz = classs.class_stack[-1]
 
    @staticmethod   
-   def get_type(static):
+   def set_extends(sup):
+      classs.clz['extends'] = sup
+
+   @staticmethod   
+   def get_type(module,static):
       if static:
-         return classs.clz['static_type']
-      return classs.clz['class_type']
+         if classs.clz['static_type'] != None:
+            return classs.clz['static_type']
+      else: 
+         if classs.clz['class_type'] != None:
+            return classs.clz['class_type']
+
+      t = module.context.get_identified_type(classs.fqid())
+      types = classs.get_member_types(False)
+      t.set_body(*types)
+      classs.clz['class_type'] = t
+
+      s = module.context.get_identified_type(classs.fqid() + ".static")
+      types = classs.get_member_types(True)
+      s.set_body(*types)
+      classs.clz['static_type'] = s
+
+      return classs.get_type(module,static)
 
    @staticmethod   
    def get_class_fq(ident):
@@ -265,7 +288,9 @@ def get(var,builder=None):
      v = var[i]    
      e = get_one(v,thisvar,thistype,builder) 
      if i == (len(var) - 1):
-        return e
+       if e == None and i==0:
+           return classs.get_class_fq(package + "." + v)
+       return e
      if e == None and i==0: #could be a class name
        thistype = classs.get_class_fq(package + "." + v)
      else:

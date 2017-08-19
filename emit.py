@@ -774,7 +774,7 @@ def emit_method(method,static,native,constructor,module,pas):
       names = []
 
       if not static and not native:
-         types.append(context.classs.get_type(False).as_pointer())
+         types.append(context.classs.get_type(module,False).as_pointer())
          names.append("this")
       
       if "FormalParameterList" in fps:
@@ -869,7 +869,7 @@ def emit_class(cls,module,pas):
       context.classs.set_type(None,None,ident)
 
    if pas == "decl_methods":
-      typo = ir.FunctionType(ir.VoidType(), [context.classs.get_type(False).as_pointer()], False)
+      typo = ir.FunctionType(ir.VoidType(), [context.classs.get_type(module,False).as_pointer()], False)
       func = ir.Function(module, typo, context.classs.fqid() + ".init")
       func.attributes.add("noinline")
       context.classs.set_init(func)
@@ -892,6 +892,10 @@ def emit_class(cls,module,pas):
       block = func.append_basic_block('bb')
       static_init = Builder(block)
 
+   if "EXTENDS" in cls:
+      sup = context.get(cls["ClassType"][0]["Identifier"][0])
+      context.classs.set_extends(sup)
+
    for decl in decls:
       static = "STATIC" in decl
 
@@ -912,21 +916,6 @@ def emit_class(cls,module,pas):
       else:
         assert(False)
 
-   if pas == "decl_type":
-      t = module.context.get_identified_type(context.classs.fqid())
-      types = context.classs.get_member_types(False)
-      t.set_body(*types)
-
-      s = module.context.get_identified_type(context.classs.fqid() + ".static")
-      types = context.classs.get_member_types(True)
-      s.set_body(*types)
-
-      context.classs.set_type(t,s,ident)
-
-      ident = "static." + context.classs.fqid()
-      e = ir.GlobalVariable(module,context.classs.get_type(True),ident)
-      e.linkage = "internal"
-      context.globals.create(ident,e)
    if pas == "method_body" or pas == "method_phi":
       init.ret_void()
       static_init.ret_void()
@@ -1007,6 +996,14 @@ def emit_module(unit,pas):
    for t in unit["TypeDeclaration"]:
       assert "ClassDeclaration" in t
       emit_class(t["ClassDeclaration"][0],module,pas)
+
+   if pas == "decl_type":
+      for clz in context.classs.clzs:
+          context.classs.set_class(clz)
+          ident = "static." + context.classs.fqid()
+          e = ir.GlobalVariable(module,context.classs.get_type(module,True),ident)
+          e.linkage = "internal"
+          context.globals.create(ident,e)
 
    if pas == "decl_methods":
        emit_print_funcs(module)
