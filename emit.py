@@ -774,7 +774,7 @@ def emit_method(method,static,native,constructor,module,pas):
       names = []
 
       if not static and not native:
-         types.append(context.classs.get_type(module,False).as_pointer())
+         types.append(context.classs.get_type(context.classs.clz,module,False).as_pointer())
          names.append("this")
       
       if "FormalParameterList" in fps:
@@ -869,7 +869,7 @@ def emit_class(cls,module,pas):
       context.classs.set_type(None,None,ident)
 
    if pas == "decl_methods":
-      typo = ir.FunctionType(ir.VoidType(), [context.classs.get_type(module,False).as_pointer()], False)
+      typo = ir.FunctionType(ir.VoidType(), [context.classs.get_type(context.classs.clz,module,False).as_pointer()], False)
       func = ir.Function(module, typo, context.classs.fqid() + ".init")
       func.attributes.add("noinline")
       context.classs.set_init(func)
@@ -999,9 +999,8 @@ def emit_module(unit,pas):
 
    if pas == "decl_type":
       for clz in context.classs.clzs:
-          context.classs.set_class(clz)
-          ident = "static." + context.classs.fqid()
-          e = ir.GlobalVariable(module,context.classs.get_type(module,True),ident)
+          ident = "static." + clz['class_name']
+          e = ir.GlobalVariable(module,context.classs.get_type(clz,module,True),ident)
           e.linkage = "internal"
           context.globals.create(ident,e)
 

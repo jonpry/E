@@ -119,10 +119,6 @@ class classs:
    def fqid():
       return classs.clz['class_name']
 
-   @staticmethod
-   def set_class(c):
-      classs.clz = c
-
    @staticmethod   
    def new():
       classs.clz = {'class_members' : {}, "static_members" : {}, 'extends' : None, 'class_type' : None, "static_type" : None, 'class_name' : '', 'static_init' : None, 'init' : None}
@@ -146,25 +142,25 @@ class classs:
       classs.clz['extends'] = sup
 
    @staticmethod   
-   def get_type(module,static):
+   def get_type(cl,module,static):
       if static:
-         if classs.clz['static_type'] != None:
-            return classs.clz['static_type']
+         if cl['static_type'] != None:
+            return cl['static_type']
       else: 
-         if classs.clz['class_type'] != None:
-            return classs.clz['class_type']
+         if cl['class_type'] != None:
+            return cl['class_type']
 
-      t = module.context.get_identified_type(classs.fqid())
-      types = classs.get_member_types(False)
+      t = module.context.get_identified_type(cl['class_name'])
+      types = classs.get_member_types(cl,module,False)
       t.set_body(*types)
-      classs.clz['class_type'] = t
+      cl['class_type'] = t
 
-      s = module.context.get_identified_type(classs.fqid() + ".static")
-      types = classs.get_member_types(True)
+      s = module.context.get_identified_type(cl['class_name'] + ".static")
+      types = classs.get_member_types(cl,module,True)
       s.set_body(*types)
-      classs.clz['static_type'] = s
+      cl['static_type'] = s
 
-      return classs.get_type(module,static)
+      return classs.get_type(cl,module,static)
 
    @staticmethod   
    def get_class_fq(ident):
@@ -198,12 +194,14 @@ class classs:
          classs.clz['class_members'][name] = t
 
    @staticmethod   
-   def get_member_types(static):
+   def get_member_types(clz,module,static):
       src = "class_members"
       if static:
          src = "static_members"
       t = []
-      for k,v in classs.clz[src].items():
+      if not static and clz['extends'] != None:
+        t.append(classs.get_type(clz['extends'],module,static))
+      for k,v in clz[src].items():
         t.append(v)
       return t
 
@@ -232,6 +230,8 @@ def gep(ptr,this,var,builder,static):
    src = "static_members" if static else "class_members"
    if var in this[src]:
       i = this[src].keys().index(var)
+      if static == False and this['extends'] != None:
+         i += 1
       #print "gep"
       #print traceback.print_stack()
       #print this
