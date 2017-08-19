@@ -29,7 +29,7 @@ public final class ClassC {
         mInherited2=5;
     }
 
-    public int member2(int j) throws Exception {
+    public int member3(int j) throws Exception {
         int i=111;
         TestClass.print_int(i);
         return i+j;
@@ -251,6 +251,9 @@ public final class TestClass {
         i=theB.member2(2);
         print_long(theB.mBar);
         print_int(theB.sBar);
+        print_int(theB.mInherited);
+        print_int(i);
+        i=theB.member3(2);
         print_int(i);
         i++;
     }

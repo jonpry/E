@@ -1,6 +1,7 @@
 #!/usr/bin/python
 from llvmlite import ir
 from signed import SIntType, Builder
+import context
 
 def type_info(a):
    signed = False
@@ -17,6 +18,20 @@ def type_info(a):
      t = 64
      flo = True
    return (signed,flo,t)
+
+def cast_ptr(v,t,builder):
+   if v.type == t:
+      return v
+   typ = str(v.type).split("\"")[1]
+   while typ != None:
+     clz = context.classs.get_class(typ)
+     if clz['extends'] == None:
+        break
+     typ = clz['extends']['class_type']
+     typ = str(typ).split("\"")[1]
+     if typ == str(t).split("\"")[1]:
+        v = builder.gep(v,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),0)])
+   return v
 
 def auto_cast(a,b,builder,i=None,single=False,force_sign=None):
    asigned, afloat, at = type_info(a.type)

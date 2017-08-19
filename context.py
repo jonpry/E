@@ -225,25 +225,29 @@ def set_package(p):
    global package
    package = p
 
-def gep(ptr,this,var,builder,static):
+def gep(ptr,this,var,builder,static, extended):
    #print traceback.print_stack()
    src = "static_members" if static else "class_members"
    if var in this[src]:
       i = this[src].keys().index(var)
-      if static == False and this['extends'] != None:
+      if static == False and extended == False and this['extends'] != None:
          i += 1
       #print "gep"
       #print traceback.print_stack()
       #print this
-      v = builder.gep(ptr,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),i)])
+      if extended:
+         v = builder.gep(ptr,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),i)])
+      else:
+         v = builder.gep(ptr,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),i)])
       return v
 
-def get_one(var,obj,objclz,builder):
+def get_one(var,obj,objclz,extended,builder):
    global context
 
    if var in context:
       return context[var]
 
+   #print objclz
    #print var
    if funcs.get(var) != None:
       #print "png"
@@ -263,11 +267,18 @@ def get_one(var,obj,objclz,builder):
       return (funcs.get(fq),obj)
 
    if var in objclz["static_members"]:
-      return gep(globals.get("static." + objclz["class_name"]),objclz,var,builder, True)
+      return gep(globals.get("static." + objclz["class_name"]),objclz,var,builder, True,False)
        
    if obj==None:
       return None
-   return gep(obj,objclz,var,builder, False)
+   return gep(obj,objclz,var,builder, False, extended)
+
+def get_one_poly(var,obj,objclz,builder):
+   t = get_one(var,obj,objclz,False,builder)
+   if t != None:
+      return t
+   if objclz['extends'] != None:
+      return get_one(var,obj,objclz['extends'],True,builder)
 
 def get(var,builder=None):  
    thistype = classs.clz
@@ -279,14 +290,14 @@ def get(var,builder=None):
    #print "type"
    #print thistype
 
-   t = get_one(var,thisvar,thistype,builder)
+   t = get_one_poly(var,thisvar,thistype,builder)
    if t != None:
        return t      
    
    var = var.split(".")
    for i in range(len(var)):
      v = var[i]    
-     e = get_one(v,thisvar,thistype,builder) 
+     e = get_one_poly(v,thisvar,thistype,builder) 
      if i == (len(var) - 1):
        if e == None and i==0:
            return classs.get_class_fq(package + "." + v)

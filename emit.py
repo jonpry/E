@@ -91,7 +91,7 @@ def emit_call(tup,suf,builder):
    static =  tup[0]["static"]
    if not static:
       assert(tup[1] != None)
-      args.append(tup[1]) #todo: check caller is not static
+      args.append(cast.cast_ptr(tup[1],func.args[0].type,builder)) #todo: check caller is not static
    if "Expression" in a:
       for i in range(len(a["Expression"])):
           e = a["Expression"][i]
@@ -894,7 +894,8 @@ def emit_class(cls,module,pas):
 
    if "EXTENDS" in cls:
       sup = context.get(cls["ClassType"][0]["Identifier"][0])
-      context.classs.set_extends(sup)
+      if pas == "decl_type":
+         context.classs.set_extends(sup)
 
    for decl in decls:
       static = "STATIC" in decl
