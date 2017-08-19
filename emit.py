@@ -445,7 +445,7 @@ def emit_statement(s,pas,builder):
        block = s["Block"][0]
        for bs in block["BlockStatements"][0]["BlockStatement"]:
           emit_blockstatement(bs,pas,builder)
-       context.pop()
+       context.pop(builder)
        return
    if "FOR" in s or "WHILE" in s:
        do = "DO" in s
@@ -528,12 +528,12 @@ def emit_statement(s,pas,builder):
        builder.branch(cond_block)
        context.breaks.pop()
        context.continues.pop()
-       for_context = context.pop()      
+       for_context = context.pop(builder)[0]      
 
        builder.position_at_end(end_block)
        #Two pops
-       context.pop() 
-       context.pop() 
+       context.pop(builder) 
+       context.pop(builder) 
 
        if json.dumps(s) in for_ctx:
           for k,v in phis.items():
@@ -581,7 +581,7 @@ def emit_statement(s,pas,builder):
        builder.cbranch(c,true_block,false_block)
        builder.position_at_end(true_block)
        emit_statement(st_then,pas,builder)
-       true_context = context.pop()
+       true_context = context.pop(builder)[0]
        has_phi = True
        context.push(False,old_context)
        if not builder.block.is_terminated:
@@ -594,7 +594,7 @@ def emit_statement(s,pas,builder):
        if len(s["Statement"]) > 1:
           st_otherwise = s["Statement"][1]
           emit_statement(st_otherwise,pas,builder)
-       false_context = context.pop()
+       false_context = context.pop(builder)[0]
        false_block = builder.block
        if not builder.block.is_terminated:
           builder.branch(end_block)
@@ -662,13 +662,21 @@ def emit_member_decl(t,static,st,module,pas):
       else:       
          context.set(ident,val,builder)
 
-      context.pop()
+      context.pop(builder)
       if not static:
          context.thiss.pop()
 
+def emit_lifetime(var,t,action,builder):
+    #sz = builder.gep(ir.Constant(t.as_pointer(),None),[ir.Constant(ir.IntType(32),1)])
+    #sz = builder.ptrtoint(sz,ir.IntType(64))
+    var = builder.bitcast(var,ir.IntType(8).as_pointer())
+    sz = ir.Constant(ir.IntType(64),-1)
+    builder.call(context.get("llvm.lifetime." + action)[0]["func"], [sz, var])
+
+
 def emit_local_decl(t,lv,pas,builder):
    if isinstance(t,ir.Aggregate):
-      nid = builder.block.name + "." + lv["Identifier"][0]
+      nid = "." + builder.block.name + "." + lv["Identifier"][0]
       if pas == "method_phi":
           context.create(lv["Identifier"][0], builder.alloca(t))
           context.funcs.get(builder.function.name)["allocs"][nid] = t
@@ -676,10 +684,7 @@ def emit_local_decl(t,lv,pas,builder):
           var = context.get(nid)
           context.create(lv["Identifier"][0], var)
           #lifetime management
-          sz = builder.gep(ir.Constant(t.as_pointer(),None),[ir.Constant(ir.IntType(32),1)])
-          sz = builder.ptrtoint(sz,ir.IntType(64))
-          var = builder.bitcast(var,ir.IntType(8).as_pointer())
-          builder.call(context.get("llvm.lifetime.start")[0]["func"], [sz, var])
+          emit_lifetime(var,t,'start',builder)
       else:
           assert(False)
    else:
@@ -820,13 +825,13 @@ def emit_method(method,static,native,constructor,module,pas):
    for bs in methodbody["BlockStatements"][0]["BlockStatement"]:
       emit_blockstatement(bs,pas,builder)
 
-   if context.get(name)[0]["ret"] == ir.VoidType():
-      builder.ret_void()
-
    if not static:
       context.thiss.pop()
    context.funcs.pop()
-   context.pop()
+   context.pop(builder)
+
+   if context.get(name)[0]["ret"] == ir.VoidType():
+      builder.ret_void()
 
 def emit_member(member,module,pas):
    static = False
@@ -903,7 +908,7 @@ def emit_class(cls,module,pas):
                 emit_blockstatement(bs,pas,builder)
              if not static:
                 context.thiss.pop()
-             context.pop()
+             context.pop(builder)
       else:
         assert(False)
 

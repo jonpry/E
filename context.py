@@ -4,13 +4,18 @@ import sys
 import traceback
 from llvmlite import ir
 from collections import OrderedDict
+import emit
 
 context = {}
 cstack = []
 package = ""
 
 def is_pointer(var):
-   return len(str(var.type).split("*")) > 1
+   if isinstance(var,ir.Type):
+      st = str(var)
+   else:
+      st = str(var.type)
+   return len(st.split("*")) > 1
 
 class funcs:
    funcs = {}
@@ -302,6 +307,7 @@ def push(deep,force=None):
    cstack.append(ret)
    return ret.copy()
 
+#returns items in both a and b that are different
 def different_in(a,b):
    ret = []
    for k,v in a.items():
@@ -310,7 +316,16 @@ def different_in(a,b):
           ret.append( (k,v,b[k]) )
    return ret
 
-def pop():
+#returns items that went out of scope
+def removed_in(a,b):
+   ret = []
+   for k,v in a.items():
+      if k not in b:
+         ret.append( (k,v) )
+   return ret
+
+
+def pop(builder):
    global context
    global cstack   
    #print "pop"
@@ -321,6 +336,16 @@ def pop():
    #pop can only clear variables from scope, not change meaning
    for k,v, nv in different_in(context,ret):
       context[k] = nv
-   return context.copy()
+
+   diff = removed_in(ret,context)
+   for n,t in diff:
+      if is_pointer(t):
+        if isinstance(t,ir.Argument):
+           continue
+        if n.startswith(".bb"):
+           continue
+        emit.emit_lifetime(t,t.type,'end',builder)
+
+   return (context.copy(),diff)
 
 
