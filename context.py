@@ -12,10 +12,10 @@ package = ""
 
 def is_pointer(var):
    if isinstance(var,ir.Type):
-      st = str(var)
+      st = var
    else:
-      st = str(var.type)
-   return len(st.split("*")) > 1
+      st = var.type
+   return st.is_pointer
 
 class funcs:
    funcs = {}
@@ -121,7 +121,7 @@ class classs:
 
    @staticmethod   
    def new():
-      classs.clz = {'class_members' : {}, "static_members" : {}, 'extends' : None, 'class_type' : None, "static_type" : None, 'class_name' : '', 'static_init' : None, 'init' : None}
+      classs.clz = {'class_members' : {}, "static_members" : {}, 'extends' : None, 'class_type' : None, "static_type" : None, 'constructor' : None, 'class_name' : '', 'static_init' : None, 'init' : None}
       classs.clzs.append(classs.clz)
       return classs.clz
 
@@ -138,8 +138,16 @@ class classs:
       clz = classs.class_stack[-1]
 
    @staticmethod   
+   def set_constructor(func):
+      classs.clz['constructor'] = func
+
+   @staticmethod   
    def set_extends(sup):
       classs.clz['extends'] = sup
+
+   @staticmethod   
+   def get_extends():
+      return classs.clz['extends']
 
    @staticmethod   
    def get_type(cl,module,static):
@@ -267,7 +275,7 @@ def get_one(var,obj,objclz,extended,builder):
       return (funcs.get(fq),obj)
 
    if var in objclz["static_members"]:
-      return gep(globals.get("static." + objclz["class_name"]),objclz,var,builder, True,False)
+      return gep(globals.get("#static." + objclz["class_name"]),objclz,var,builder, True,False)
        
    if obj==None:
       return None
@@ -280,15 +288,16 @@ def get_one_poly(var,obj,objclz,builder):
    if objclz['extends'] != None:
       return get_one(var,obj,objclz['extends'],True,builder)
 
-def get(var,builder=None):  
+def get(var,builder=None,test=False):  
    thistype = classs.clz
    if len(thiss.thiss) == 0 or thiss.thiss[-1] == None:
       thisvar = None
    else:
       thisvar = thiss.thiss[-1]
 
-   #print "type"
-   #print thistype
+   if test:
+     print "type"
+     print var
 
    t = get_one_poly(var,thisvar,thistype,builder)
    if t != None:
@@ -306,7 +315,7 @@ def get(var,builder=None):
        thistype = classs.get_class_fq(package + "." + v)
      else:
        thisvar = e
-       thistype = classs.get_class_fq(str(e.type).split("\"")[1])
+       thistype = classs.get_class_fq(e.type.pointee.name)
 
 
 def set(var, val, builder=None):

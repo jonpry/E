@@ -691,8 +691,8 @@ def emit_local_decl(t,lv,pas,builder):
       context.create(lv["Identifier"][0], t)
 
    if "Arguments" in lv: #Constructor
-      t = str(t).split("\"")[1]
-      t += "." + t.split(".")[-1]
+      t = t.name
+      t += ".#" + t.split(".")[-1]
       func = (context.get(t)[0],context.get(lv["Identifier"][0]))
       emit_call(func,lv,builder)
 
@@ -785,13 +785,16 @@ def emit_method(method,static,native,constructor,module,pas):
            names.append(fp["VariableDeclaratorId"][0]["Identifier"][0])
 
       native_name = name
-      name = context.classs.fqid() + "." + name
+      sep = ".#" if constructor else "."
+      name = context.classs.fqid() + sep + name
       func = context.funcs.get_native(native_name)
       if not native or func == None:
          typo = ir.FunctionType(rtype, types, False)
          func = ir.Function(module, typo, native_name if native else name)
          func.attributes.add("noinline")
       context.funcs.create(name,{"func" : func, "names" : names, "ret" : rtype, "static" : (static or native), "native" : native, "allocs" : {}})
+      if constructor:
+         context.classs.set_constructor(func)
       return
 
    if "MethodBody" not in method:
@@ -799,26 +802,36 @@ def emit_method(method,static,native,constructor,module,pas):
 
    assert(not native)
 
-   func = context.get(name)[0]["func"]
+   if constructor:
+      fstruct = context.get(context.get(name)["constructor"].name)[0]
+   else:
+      fstruct = context.get(name)[0]
+   func = fstruct["func"]
    context.push(True)
-   context.funcs.push(context.get(name))
+   context.funcs.push(func)
 
    if not static:
        context.thiss.push(func.args[0])
    for i in range(len(func.args)):
      arg = func.args[i]
-     context.create(context.get(name)[0]["names"][i], arg)
+     context.create(fstruct["names"][i], arg)
     
    reset_func(func)
    block = func.append_basic_block('bb')
    builder = Builder(block)
 
    if pas == "method_body":
-      allocs = context.get(name)[0]["allocs"]
+      allocs = fstruct["allocs"]
       for k,v in allocs.items():
           context.create(k,builder.alloca(v))
 
    if constructor:
+       ext = context.classs.get_extends()
+       if ext != None:
+           cfunc = ext["constructor"]
+           ptr = func.args[0]
+           ptr = cast.cast_ptr(ptr,cfunc.args[0].type,builder)
+           builder.call(cfunc,[ptr])
        builder.call(context.classs.get_init(),[func.args[0]])
 
    methodbody = method["MethodBody"][0]
@@ -830,7 +843,7 @@ def emit_method(method,static,native,constructor,module,pas):
    context.funcs.pop()
    context.pop(builder)
 
-   if context.get(name)[0]["ret"] == ir.VoidType():
+   if fstruct["ret"] == ir.VoidType():
       builder.ret_void()
 
 def emit_member(member,module,pas):
@@ -870,12 +883,12 @@ def emit_class(cls,module,pas):
 
    if pas == "decl_methods":
       typo = ir.FunctionType(ir.VoidType(), [context.classs.get_type(context.classs.clz,module,False).as_pointer()], False)
-      func = ir.Function(module, typo, context.classs.fqid() + ".init")
+      func = ir.Function(module, typo, context.classs.fqid() + ".#init")
       func.attributes.add("noinline")
       context.classs.set_init(func)
 
       typo = ir.FunctionType(ir.VoidType(), [], False)
-      func = ir.Function(module, typo, context.classs.fqid() + ".static.init")
+      func = ir.Function(module, typo, context.classs.fqid() + ".#static.init")
       func.attributes.add("noinline")
       context.classs.set_static_init(func)
       static_ctors.append(func)
@@ -1000,7 +1013,7 @@ def emit_module(unit,pas):
 
    if pas == "decl_type":
       for clz in context.classs.clzs:
-          ident = "static." + clz['class_name']
+          ident = "#static." + clz['class_name']
           e = ir.GlobalVariable(module,context.classs.get_type(clz,module,True),ident)
           e.linkage = "internal"
           context.globals.create(ident,e)
