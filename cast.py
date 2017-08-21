@@ -22,15 +22,14 @@ def type_info(a):
 def cast_ptr(v,t,builder):
    if v.type == t:
       return v
-   typ = str(v.type).split("\"")[1]
+   typ = v.type.pointee.name
    while typ != None:
      clz = context.classs.get_class(typ)
      if clz['extends'] == None:
         break
-     typ = clz['extends']['class_type']
-     typ = str(typ).split("\"")[1]
-     if typ == str(t).split("\"")[1]:
-        v = builder.gep(v,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),0)])
+     typ = clz['extends']['class_type'].name
+     if typ == t.pointee.name:
+        v = builder.gep(v,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
    return v
 
 def auto_cast(a,b,builder,i=None,single=False,force_sign=None):

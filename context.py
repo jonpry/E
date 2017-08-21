@@ -160,7 +160,7 @@ class classs:
 
       t = module.context.get_identified_type(cl['class_name'])
       types = classs.get_member_types(cl,module,False)
-      t.set_body(*types)
+      t.set_body(ir.IntType(8).as_pointer(), *types)
       cl['class_type'] = t
 
       s = module.context.get_identified_type(cl['class_name'] + ".static")
@@ -238,13 +238,15 @@ def gep(ptr,this,var,builder,static, extended):
    src = "static_members" if static else "class_members"
    if var in this[src]:
       i = this[src].keys().index(var)
+      if static == False:
+         i += 1
       if static == False and extended == False and this['extends'] != None:
          i += 1
       #print "gep"
       #print traceback.print_stack()
       #print this
       if extended:
-         v = builder.gep(ptr,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),i)])
+         v = builder.gep(ptr,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1),ir.Constant(ir.IntType(32),i)])
       else:
          v = builder.gep(ptr,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),i)])
       return v

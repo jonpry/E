@@ -84,7 +84,7 @@ def emit_literal(l,builder):
        return emit_float_literal(l["FloatLiteral"][0],builder)
    assert(False)
 
-def emit_call(tup,suf,builder):
+def emit_call(tup,suf,builder,constructor=None):
    a = suf["Arguments"][0]
    args = []
    func = tup[0]["func"]
@@ -92,10 +92,12 @@ def emit_call(tup,suf,builder):
    if not static:
       assert(tup[1] != None)
       args.append(cast.cast_ptr(tup[1],func.args[0].type,builder)) #todo: check caller is not static
+   if constructor != None:
+      args.append(constructor) #todo: check caller is not static
    if "Expression" in a:
       for i in range(len(a["Expression"])):
           e = a["Expression"][i]
-          t = func.args[i if static else i+1]
+          t = func.args[i if static else (i+2 if constructor != None else i+1)]
           e = emit_expression(e,builder)
           e,foo,signed,flo = cast.auto_cast(e,t,builder,single=True,force_sign=str(t)[0])
           args.append(e)
@@ -694,7 +696,7 @@ def emit_local_decl(t,lv,pas,builder):
       t = t.name
       t += ".#" + t.split(".")[-1]
       func = (context.get(t)[0],context.get(lv["Identifier"][0]))
-      emit_call(func,lv,builder)
+      emit_call(func,lv,builder,builder.bitcast(context.get(lv["Identifier"][0]),ir.IntType(8).as_pointer()))
 
    if "VariableInitializer" in lv:
       val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],builder)
@@ -776,6 +778,11 @@ def emit_method(method,static,native,constructor,module,pas):
       if not static and not native:
          types.append(context.classs.get_type(context.classs.clz,module,False).as_pointer())
          names.append("this")
+
+      if constructor:
+         types.append(ir.IntType(8).as_pointer())
+         names.append("#alloc")
+
       
       if "FormalParameterList" in fps:
         fps = fps["FormalParameterList"][0]["FormalParameter"]
@@ -830,9 +837,9 @@ def emit_method(method,static,native,constructor,module,pas):
        if ext != None:
            cfunc = ext["constructor"]
            ptr = func.args[0]
-           ptr = cast.cast_ptr(ptr,cfunc.args[0].type,builder)
-           builder.call(cfunc,[ptr])
-       builder.call(context.classs.get_init(),[func.args[0]])
+           dptr = cast.cast_ptr(ptr,cfunc.args[0].type,builder)
+           builder.call(cfunc,[dptr,func.args[1]])
+       builder.call(context.classs.get_init(),[func.args[0],func.args[1]])
 
    methodbody = method["MethodBody"][0]
    for bs in methodbody["BlockStatements"][0]["BlockStatement"]:
@@ -882,7 +889,7 @@ def emit_class(cls,module,pas):
       context.classs.set_type(None,None,ident)
 
    if pas == "decl_methods":
-      typo = ir.FunctionType(ir.VoidType(), [context.classs.get_type(context.classs.clz,module,False).as_pointer()], False)
+      typo = ir.FunctionType(ir.VoidType(), [context.classs.get_type(context.classs.clz,module,False).as_pointer(), ir.IntType(8).as_pointer()], False)
       func = ir.Function(module, typo, context.classs.fqid() + ".#init")
       func.attributes.add("noinline")
       context.classs.set_init(func)
@@ -899,6 +906,8 @@ def emit_class(cls,module,pas):
 
       block = func.append_basic_block('bb')
       init = Builder(block)
+      base = init.gep(func.args[0],[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),0)])
+      init.store(func.args[1],base)
 
       func = context.classs.get_static_init()
       reset_func(func)

@@ -24,6 +24,7 @@ import life.stel.e.another;
 public final class ClassC {
     public int mInherited=4; 
     public int mInherited2=4; 
+    public static int sMember = 3;
 
     public ClassC(){
         mInherited2=5;
@@ -255,6 +256,7 @@ public final class TestClass {
         print_int(i);
         i=theB.member3(2);
         print_int(i);
+        print_int(theB.sMember);
         i++;
     }
 
