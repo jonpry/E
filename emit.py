@@ -141,7 +141,7 @@ def emit_unary_expression(ue,builder):
          print json.dumps(po)
          assert(False)
    if "Type" in ue:
-      t = get_type(ue["Type"][0])
+      t = get_type(ue["Type"][0],builder.module)
       a = emit_unary_expression(ue["UnaryExpression"][0],builder)
       a = cast.explicit_cast(a,t,builder)
 
@@ -669,9 +669,16 @@ def emit_member_decl(t,static,st,module,pas):
          context.thiss.pop()
 
 def emit_lifetime(var,t,action,builder):
-    #sz = builder.gep(ir.Constant(t.as_pointer(),None),[ir.Constant(ir.IntType(32),1)])
-    #sz = builder.ptrtoint(sz,ir.IntType(64))
-    var = builder.bitcast(var,ir.IntType(8).as_pointer())
+    if context.is_pointer(t):
+       atype = context.classs.get_class(t.pointee.name)
+    else:
+        atype = context.classs.get_class(t.name)
+    atype = context.classs.get_type(atype,builder.module,False,True)
+    sz = builder.gep(ir.Constant(atype.as_pointer(),None),[ir.Constant(ir.IntType(32),0), ir.Constant(ir.IntType(32),1)])
+    sz = builder.ptrtoint(sz,ir.IntType(64))
+    var= builder.ptrtoint(var,ir.IntType(64))
+    var = builder.sub(var,sz)
+    var = builder.inttoptr(var,ir.IntType(8).as_pointer())
     sz = ir.Constant(ir.IntType(64),-1)
     builder.call(context.get("llvm.lifetime." + action)[0]["func"], [sz, var])
 
@@ -680,7 +687,9 @@ def emit_local_decl(t,lv,pas,builder):
    if isinstance(t,ir.Aggregate):
       nid = "." + builder.block.name + "." + lv["Identifier"][0]
       if pas == "method_phi":
-          context.create(lv["Identifier"][0], builder.alloca(t))
+          atype = context.classs.get_class(t.name)
+          atype = context.classs.get_type(atype,builder.module,False,True)
+          context.create(lv["Identifier"][0], builder.gep(builder.alloca(atype),[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)]))
           context.funcs.get(builder.function.name)["allocs"][nid] = t
       elif pas == "method_body":
           var = context.get(nid)
@@ -707,7 +716,7 @@ def emit_local_decl(t,lv,pas,builder):
          context.set(lv["Identifier"][0], cast.explicit_cast(val,var.type,builder))
 
 
-def get_type(t):
+def get_type(t,module):
    if "BasicType" in t:
      if "uint" in t["BasicType"][0]:
        return ir.IntType(32)
@@ -732,14 +741,14 @@ def get_type(t):
      if "boolean" in t["BasicType"][0]:
        return ir.IntType(1)
    if "ClassType" in t:
-     return context.classs.get_class_type(t["ClassType"][0]["Identifier"][0])
+     return context.classs.get_class_type(t["ClassType"][0]["Identifier"][0],module)
 
    print json.dumps(t)
    assert(False)
 
 
 def emit_local_variable_decl(lv,pas,builder):
-   t = get_type(lv["Type"][0])
+   t = get_type(lv["Type"][0],builder.module)
    l = lv["VariableDeclarators"][0]["VariableDeclarator"]
    for e in l:
       emit_local_decl(t,e,pas,builder)
@@ -769,14 +778,14 @@ def emit_method(method,static,native,constructor,module,pas):
       if "TypeOrVoid" in method:
         tv = method["TypeOrVoid"][0]
         if "Type" in tv:
-           rtype = get_type(tv["Type"][0])
+           rtype = get_type(tv["Type"][0],module)
 
       fps = method["FormalParameters"][0]
       types = []
       names = []
 
       if not static and not native:
-         types.append(context.classs.get_type(context.classs.clz,module,False).as_pointer())
+         types.append(context.classs.get_type(context.classs.clz,module,False,False).as_pointer())
          names.append("this")
 
       if constructor:
@@ -787,7 +796,7 @@ def emit_method(method,static,native,constructor,module,pas):
       if "FormalParameterList" in fps:
         fps = fps["FormalParameterList"][0]["FormalParameter"]
         for fp in fps:
-           t = get_type(fp["Type"][0])
+           t = get_type(fp["Type"][0],module)
            types.append(t)
            names.append(fp["VariableDeclaratorId"][0]["Identifier"][0])
 
@@ -867,7 +876,7 @@ def emit_member(member,module,pas):
       return emit_method(member["ConstructorDeclarator"][0],False,False,True,module,pas)
 
    if "VariableDeclarators" in member:
-      t = get_type(member["Type"][0])
+      t = get_type(member["Type"][0],module)
       l = member["VariableDeclarators"][0]["VariableDeclarator"]
       for e in l:
          emit_member_decl(t,static,e,module,pas)
@@ -889,7 +898,7 @@ def emit_class(cls,module,pas):
       context.classs.set_type(None,None,ident)
 
    if pas == "decl_methods":
-      typo = ir.FunctionType(ir.VoidType(), [context.classs.get_type(context.classs.clz,module,False).as_pointer(), ir.IntType(8).as_pointer()], False)
+      typo = ir.FunctionType(ir.VoidType(), [context.classs.get_type(context.classs.clz,module,False,False).as_pointer(), ir.IntType(8).as_pointer()], False)
       func = ir.Function(module, typo, context.classs.fqid() + ".#init")
       func.attributes.add("noinline")
       context.classs.set_init(func)
@@ -1023,7 +1032,7 @@ def emit_module(unit,pas):
    if pas == "decl_type":
       for clz in context.classs.clzs:
           ident = "#static." + clz['class_name']
-          e = ir.GlobalVariable(module,context.classs.get_type(clz,module,True),ident)
+          e = ir.GlobalVariable(module,context.classs.get_type(clz,module,True,False),ident)
           e.linkage = "internal"
           context.globals.create(ident,e)
 

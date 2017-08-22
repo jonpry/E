@@ -121,7 +121,7 @@ class classs:
 
    @staticmethod   
    def new():
-      classs.clz = {'class_members' : {}, "static_members" : {}, 'extends' : None, 'class_type' : None, "static_type" : None, 'constructor' : None, 'class_name' : '', 'static_init' : None, 'init' : None}
+      classs.clz = {'class_members' : {}, "static_members" : {}, 'extends' : None, 'class_type' : None, "static_type" : None, 'alloc_type' : None, 'constructor' : None, 'class_name' : '', 'static_init' : None, 'init' : None}
       classs.clzs.append(classs.clz)
       return classs.clz
 
@@ -150,10 +150,13 @@ class classs:
       return classs.clz['extends']
 
    @staticmethod   
-   def get_type(cl,module,static):
+   def get_type(cl,module,static,alloc):
       if static:
          if cl['static_type'] != None:
             return cl['static_type']
+      elif alloc:
+         if cl['alloc_type'] != None:
+            return cl['alloc_type']
       else: 
          if cl['class_type'] != None:
             return cl['class_type']
@@ -163,12 +166,16 @@ class classs:
       t.set_body(ir.IntType(8).as_pointer(), *types)
       cl['class_type'] = t
 
-      s = module.context.get_identified_type(cl['class_name'] + ".static")
+      s = module.context.get_identified_type(cl['class_name'] + ".#static")
       types = classs.get_member_types(cl,module,True)
       s.set_body(*types)
       cl['static_type'] = s
 
-      return classs.get_type(cl,module,static)
+      a = module.context.get_identified_type(cl['class_name'] + ".#alloc")
+      a.set_body(ir.IntType(64),t)
+      cl['alloc_type'] = a
+
+      return classs.get_type(cl,module,static,alloc)
 
    @staticmethod   
    def get_class_fq(ident):
@@ -188,9 +195,9 @@ class classs:
       return classs.get_class_fq(ident)
  
    @staticmethod   
-   def get_class_type(ident):
+   def get_class_type(ident,module):
       cls = classs.get_class(ident)
-      return cls["class_type"]
+      return classs.get_type(cls,module,False,False)
 
    @staticmethod   
    def create_member(t,name,static):
@@ -208,7 +215,7 @@ class classs:
          src = "static_members"
       t = []
       if not static and clz['extends'] != None:
-        t.append(classs.get_type(clz['extends'],module,static))
+        t.append(classs.get_type(clz['extends'],module,static,False))
       for k,v in clz[src].items():
         t.append(v)
       return t
