@@ -163,7 +163,7 @@ class classs:
 
       t = module.context.get_identified_type(cl['class_name'])
       types = classs.get_member_types(cl,module,False)
-      t.set_body(ir.IntType(8).as_pointer(), *types)
+      t.set_body(emit.rtti_type.as_pointer(), *types)
       cl['class_type'] = t
 
       s = module.context.get_identified_type(cl['class_name'] + ".#static")

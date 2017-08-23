@@ -668,7 +668,7 @@ def emit_member_decl(t,static,st,module,pas):
       if not static:
          context.thiss.pop()
 
-def emit_lifetime(var,t,action,builder):
+def to_atype(var,t,builder):
     if context.is_pointer(t):
        atype = context.classs.get_class(t.pointee.name)
     else:
@@ -678,7 +678,12 @@ def emit_lifetime(var,t,action,builder):
     sz = builder.ptrtoint(sz,ir.IntType(64))
     var= builder.ptrtoint(var,ir.IntType(64))
     var = builder.sub(var,sz)
-    var = builder.inttoptr(var,ir.IntType(8).as_pointer())
+    var = builder.inttoptr(var,atype.as_pointer())
+    return var
+
+def emit_lifetime(var,t,action,builder):
+    var = to_atype(var,t,builder)
+    var = builder.bitcast(var,ir.IntType(8).as_pointer())
     sz = ir.Constant(ir.IntType(64),-1)
     builder.call(context.get("llvm.lifetime." + action)[0]["func"], [sz, var])
 
@@ -705,7 +710,9 @@ def emit_local_decl(t,lv,pas,builder):
       t = t.name
       t += ".#" + t.split(".")[-1]
       func = (context.get(t)[0],context.get(lv["Identifier"][0]))
-      emit_call(func,lv,builder,builder.bitcast(context.get(lv["Identifier"][0]),ir.IntType(8).as_pointer()))
+      alloc = context.get(lv["Identifier"][0])
+      alloc = to_atype(alloc,alloc.type,builder)
+      emit_call(func,lv,builder,builder.gep(alloc,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),0)]))
 
    if "VariableInitializer" in lv:
       val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],builder)
@@ -789,7 +796,7 @@ def emit_method(method,static,native,constructor,module,pas):
          names.append("this")
 
       if constructor:
-         types.append(ir.IntType(8).as_pointer())
+         types.append(rtti_type.as_pointer())
          names.append("#alloc")
 
       
@@ -898,7 +905,7 @@ def emit_class(cls,module,pas):
       context.classs.set_type(None,None,ident)
 
    if pas == "decl_methods":
-      typo = ir.FunctionType(ir.VoidType(), [context.classs.get_type(context.classs.clz,module,False,False).as_pointer(), ir.IntType(8).as_pointer()], False)
+      typo = ir.FunctionType(ir.VoidType(), [context.classs.get_type(context.classs.clz,module,False,False).as_pointer(), rtti_type.as_pointer()], False)
       func = ir.Function(module, typo, context.classs.fqid() + ".#init")
       func.attributes.add("noinline")
       context.classs.set_init(func)
