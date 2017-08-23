@@ -7,7 +7,7 @@ from collections import OrderedDict
 from llvmlite import ir
 from llvmlite import binding
 from signed import SIntType, Builder
-import context, cast
+import context, cast, strings, utils
 
 def emit_float_literal(fl,builder):
    dat = fl["DecimalFloat"][0]
@@ -954,23 +954,6 @@ def emit_class(cls,module,pas):
 
    context.classs.pop()
 
-def make_bytearray(buf):
-    """
-    Make a byte array constant from *buf*.
-    """
-    b = bytearray(buf)
-    n = len(b)
-    return ir.Constant(ir.ArrayType(ir.IntType(8), n), b)
-
-def global_constant(module, name, value):
-    """
-    Get or create a (LLVM module-)global constant with *name* or *value*.
-    """
-    data = ir.GlobalVariable(module,value.type,name)
-    data.global_constant = True
-    data.initializer = value
-    return data
-
 def emit_print_func(module,name,fmt,typo):
     func = context.funcs.get_native(name)
     if func == None:
@@ -985,8 +968,7 @@ def emit_print_func(module,name,fmt,typo):
     pfn = context.get("printf")[0]["func"]
 
     #create global for string
-    fmt_bytes = make_bytearray((fmt + '\n\00').encode('ascii'))
-    global_fmt = global_constant(module, "print_" + name.split("_")[1] + "_format", fmt_bytes)
+    global_fmt = strings.create("print_" + name.split("_")[1] + "_format", fmt + '\n\00', module)
     global_fmt = builder.bitcast(global_fmt, ir.IntType(8).as_pointer())
 
     builder.call(pfn, [global_fmt, func.args[0]])
@@ -1019,11 +1001,27 @@ module = None
 def emit_module(unit,pas):
    global module
    global static_ctors
+   global rtti_type,string_type, string_alloc_type
    if module == None:
       module = ir.Module(name="main")
       module.triple = binding.get_default_triple()
       if "PackageDeclaration" in unit:
           context.set_package(unit["PackageDeclaration"][0]["QualifiedIdentifier"][0])
+
+   if pas == "decl_type":
+      rtti_type = module.context.get_identified_type('#rtti_type')
+      rtti_type.set_body(ir.IntType(64))
+
+      string_type = module.context.get_identified_type('#string_type')
+      string_type.set_body(rtti_type.as_pointer(),string_type.as_pointer(), string_type.as_pointer(), ir.IntType(32), ir.IntType(32), ir.IntType(8), ir.IntType(8).as_pointer())
+
+      string_alloc_type = module.context.get_identified_type('#string_alloc_type')
+      string_alloc_type.set_body(rtti_type, string_type)
+
+
+      strings.create("foo_string", 'lots and lots of foo and some bar\00', module)
+
+
 
    for t in unit["TypeDeclaration"]:
       assert "ClassDeclaration" in t

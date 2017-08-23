@@ -172,7 +172,7 @@ class classs:
       cl['static_type'] = s
 
       a = module.context.get_identified_type(cl['class_name'] + ".#alloc")
-      a.set_body(ir.IntType(64),t)
+      a.set_body(emit.rtti_type,t)
       cl['alloc_type'] = a
 
       return classs.get_type(cl,module,static,alloc)
