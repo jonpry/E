@@ -82,6 +82,11 @@ def emit_literal(l,builder):
        return ir.Constant(ir.IntType(1), 1)
    if "FloatLiteral" in l:
        return emit_float_literal(l["FloatLiteral"][0],builder)
+   if "StringLiteral" in l:
+       v = strings.create(builder.function.name + "." + builder.block.name, l["StringLiteral"][0],builder.module)
+       print v.type
+       assert(False)
+       return v
    assert(False)
 
 def emit_call(tup,suf,builder,constructor=None):
@@ -689,7 +694,7 @@ def emit_lifetime(var,t,action,builder):
 
 
 def emit_local_decl(t,lv,pas,builder):
-   if isinstance(t,ir.Aggregate):
+   if isinstance(t,ir.Aggregate) and t != string_type.as_pointer():
       nid = "." + builder.block.name + "." + lv["Identifier"][0]
       if pas == "method_phi":
           atype = context.classs.get_class(t.name)
@@ -717,6 +722,8 @@ def emit_local_decl(t,lv,pas,builder):
    if "VariableInitializer" in lv:
       val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],builder)
       var = context.get(lv["Identifier"][0],builder)
+  #    print val.type;
+  #    print var.type;
       if isinstance(var,ir.Type):
          context.set(lv["Identifier"][0], cast.explicit_cast(val,var,builder))
       else:
@@ -748,9 +755,12 @@ def get_type(t,module):
      if "boolean" in t["BasicType"][0]:
        return ir.IntType(1)
    if "ClassType" in t:
-     return context.classs.get_class_type(t["ClassType"][0]["Identifier"][0],module)
+     ident = t["ClassType"][0]["Identifier"][0]
+     if ident == "String":
+        return string_type.as_pointer()
+     return context.classs.get_class_type(ident,module)
 
-   print json.dumps(t)
+   print json.dumps(t)	
    assert(False)
 
 
@@ -976,7 +986,7 @@ def emit_print_func(module,name,fmt,typo):
 
     #create global for string
     global_fmt = strings.create("print_" + name.split("_")[1] + "_format", fmt + '\n\00', module)
-    global_fmt = builder.bitcast(global_fmt, ir.IntType(8).as_pointer())
+    global_fmt = strings.raw_cstr(global_fmt,builder)
 
     builder.call(pfn, [global_fmt, func.args[0]])
     builder.ret_void()

@@ -213,7 +213,7 @@ def assemble_qi(parse_tree,position,rule):
       node[idx] = si
       idx += 1
 
-def assemble_sl(parse_tree,position):
+def assemble_sl(parse_tree,position,rule):
     position = expand_position(position)
     node = get_node(parse_tree,position) #find parent
     idx = 0

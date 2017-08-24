@@ -21,8 +21,11 @@ def create(name,s,module):
    a = ir.Constant(emit.string_alloc_type, [None,s])
    data.initializer = a
   
-   data = data.gep([ir.Constant(ir.IntType(32),1)])
-
+   data = data.gep([ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
    stringtab[s] = data
 
    return data
+
+def raw_cstr(string,builder):
+   string = builder.gep(string, [ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),6)])
+   return builder.load(string)
