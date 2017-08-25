@@ -15,19 +15,30 @@ def create(name,s,module):
    fmt_bytes = utils.make_bytearray(s.encode('ascii'))
    global_fmt = utils.global_constant(module, "#stringtab_bytes." + name, fmt_bytes)
 
-   data = ir.GlobalVariable(module,emit.string_alloc_type,"#stringtab." + name)
-   data.global_constant = True
+   rope = ir.GlobalVariable(module,emit.rope_alloc_type,"#stringtab_ropes." + name)
+   rope.global_constant = True
 
-   struct = ir.Constant(emit.string_type, [data.bitcast(emit.rtti_type.as_pointer()),None,None,None,fmt_bytes.type.count,None,global_fmt.bitcast(ir.IntType(8).as_pointer())])
-   a = ir.Constant(emit.string_alloc_type, [None,struct])
-   data.initializer = a
-   data.global_constant = True
+   rope_const = ir.Constant(emit.rope_type, [rope.bitcast(emit.rtti_type.as_pointer()),None,None,None,fmt_bytes.type.count,None,global_fmt.bitcast(ir.IntType(8).as_pointer())])
+   ropea_const = ir.Constant(emit.rope_alloc_type, [None,rope_const])
+   rope.initializer = ropea_const
+   rope.global_constant = True
   
-   data = data.gep([ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
-   stringtab[s] = data
+   rope = rope.gep([ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
 
-   return data
+   string = ir.GlobalVariable(module,emit.string_alloc_type,"#stringtab." + name)
+   string_const = ir.Constant(emit.string_type, [string.bitcast(emit.rtti_type.as_pointer()),rope])
+   stringa_const = ir.Constant(emit.string_alloc_type, [None,string_const])
+   string.initializer = stringa_const
+   string.global_constant = True
+
+   string = string.gep([ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
+
+   stringtab[s] = string
+   return string
 
 def raw_cstr(string,builder):
-   string = builder.gep(string, [ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),6)])
+   rope = builder.gep(string, [ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
+   rope = builder.load(rope)
+
+   string = builder.gep(rope,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),6)])
    return builder.load(string)

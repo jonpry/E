@@ -684,10 +684,22 @@ def to_atype(var,t,builder):
     return var
 
 def emit_lifetime(var,t,action,builder):
+    if action == "end":
+       c = builder.icmp_unsigned("!=",builder.ptrtoint(var,ir.IntType(64)),ir.Constant(ir.IntType(64),0))
+       old_block = builder.block
+       true_block = builder.append_basic_block('bb')
+       end_block = builder.append_basic_block('bb')
+       builder.cbranch(c,true_block,end_block)
+       builder.position_at_end(true_block)
+
     var = to_atype(var,t,builder)
     var = builder.bitcast(var,ir.IntType(8).as_pointer())
     sz = ir.Constant(ir.IntType(64),-1)
     builder.call(context.get("llvm.lifetime." + action)[0]["func"], [sz, var])
+
+    if action == "end":
+       builder.branch(end_block)
+       builder.position_at_end(end_block)
 
 
 def emit_local_decl(t,lv,pas,builder):
@@ -1013,7 +1025,7 @@ module = None
 def emit_module(unit,pas):
    global module
    global static_ctors
-   global rtti_type,string_type, string_alloc_type, ctor_type
+   global rtti_type,string_type, string_alloc_type, ctor_type, rope_type, rope_alloc_type
    if module == None:
       module = ir.Module(name="main")
       module.triple = binding.get_default_triple()
@@ -1025,14 +1037,19 @@ def emit_module(unit,pas):
       ctor_type = ir.LiteralStructType([ir.IntType(32), vfunc.as_pointer(), ir.IntType(8).as_pointer()])
 
       rtti_type = module.context.get_identified_type('#rtti_type')
-      rtti_type.set_body(ir.IntType(64))
+      rtti_type.set_body(ir.IntType(32),ir.IntType(8),ir.IntType(32)) #type_id, flags, ref_cnt
+
+      rope_type = module.context.get_identified_type('#rope_type')
+      rope_type.set_body(rtti_type.as_pointer(),rope_type.as_pointer(), rope_type.as_pointer(), ir.IntType(32), ir.IntType(32), ir.IntType(8), ir.IntType(8).as_pointer())
+
+      rope_alloc_type = module.context.get_identified_type('#rope_alloc_type')
+      rope_alloc_type.set_body(rtti_type, rope_type)
 
       string_type = module.context.get_identified_type('#string_type')
-      string_type.set_body(rtti_type.as_pointer(),string_type.as_pointer(), string_type.as_pointer(), ir.IntType(32), ir.IntType(32), ir.IntType(8), ir.IntType(8).as_pointer())
+      string_type.set_body(rtti_type.as_pointer(),rope_type.as_pointer())
 
       string_alloc_type = module.context.get_identified_type('#string_alloc_type')
       string_alloc_type.set_body(rtti_type, string_type)
-
 
       strings.create("foo_string", 'lots and lots of foo and some bar\00', module)
 

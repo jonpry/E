@@ -253,7 +253,7 @@ public final class TestClass {
         print_long(theB.mBar);
         print_int(theB.sBar);
         print_int(theB.mInherited);
-        print_int(i);
+        print_int(i+j);
         i=theB.member3(2);
         print_int(i);
         print_int(theB.sMember);
