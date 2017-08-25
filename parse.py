@@ -223,7 +223,7 @@ def assemble_sl(parse_tree,position,rule):
       si = ""
       for c in chars:
         si += c
-      print si
+      #print si
       node[idx] = si
       idx += 1
     #print json.dumps(node)

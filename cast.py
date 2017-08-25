@@ -104,6 +104,9 @@ def auto_cast(a,b,builder,i=None,single=False,force_sign=None):
    return (a,b,signed,False)
 
 def explicit_cast(a,t,builder):
+   if a.type == t:
+     return a
+
    asigned, afloat, at = type_info(a.type)
    tsigned, tfloat, tt = type_info(t)
 

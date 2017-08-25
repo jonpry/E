@@ -83,10 +83,7 @@ def emit_literal(l,builder):
    if "FloatLiteral" in l:
        return emit_float_literal(l["FloatLiteral"][0],builder)
    if "StringLiteral" in l:
-       v = strings.create(builder.function.name + "." + builder.block.name, l["StringLiteral"][0],builder.module)
-       print v.type
-       assert(False)
-       return v
+       return strings.create(builder.function.name + "." + builder.block.name, l["StringLiteral"][0],builder.module)
    assert(False)
 
 def emit_call(tup,suf,builder,constructor=None):
@@ -722,8 +719,6 @@ def emit_local_decl(t,lv,pas,builder):
    if "VariableInitializer" in lv:
       val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],builder)
       var = context.get(lv["Identifier"][0],builder)
-  #    print val.type;
-  #    print var.type;
       if isinstance(var,ir.Type):
          context.set(lv["Identifier"][0], cast.explicit_cast(val,var,builder))
       else:
@@ -1018,7 +1013,7 @@ module = None
 def emit_module(unit,pas):
    global module
    global static_ctors
-   global rtti_type,string_type, string_alloc_type
+   global rtti_type,string_type, string_alloc_type, ctor_type
    if module == None:
       module = ir.Module(name="main")
       module.triple = binding.get_default_triple()
@@ -1026,6 +1021,9 @@ def emit_module(unit,pas):
           context.set_package(unit["PackageDeclaration"][0]["QualifiedIdentifier"][0])
 
    if pas == "decl_type":
+      vfunc =     fnty = ir.FunctionType(ir.VoidType(), [])
+      ctor_type = ir.LiteralStructType([ir.IntType(32), vfunc.as_pointer(), ir.IntType(8).as_pointer()])
+
       rtti_type = module.context.get_identified_type('#rtti_type')
       rtti_type.set_body(ir.IntType(64))
 
@@ -1060,8 +1058,19 @@ def emit_module(unit,pas):
       func.attributes.add("noinline")
       block = func.append_basic_block('bb')
       builder = Builder(block)
-      for f in static_ctors:
-        builder.call(f,[])
+
+      ctor_init = []
+      for i in range(len(static_ctors)):
+        f = static_ctors[i]
+        ctor_init.append([ir.Constant(ir.IntType(32),i),f,None])
+
+      ctor_ary_type = ir.ArrayType(ctor_type,len(static_ctors))
+      ctor_const = ir.Constant(ctor_ary_type,ctor_init)
+
+      ctors = ir.GlobalVariable(module,ctor_const.type,"llvm.global_ctors")
+      ctors.global_constant = False
+      ctors.initializer = ctor_const
+      ctors.linkage = "appending"
 
       builder.call(context.get("life.stel.e.test.TestClass.main")[0]["func"],[])
 

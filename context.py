@@ -398,6 +398,8 @@ def pop(builder):
            continue
         if n.startswith(".bb"):
            continue
+        if t.type == emit.string_type.as_pointer():
+           continue
         emit.emit_lifetime(t,t.type,'end',builder)
 
    return (context.copy(),diff)
