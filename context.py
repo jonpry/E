@@ -121,7 +121,7 @@ class classs:
 
    @staticmethod   
    def new():
-      classs.clz = {'class_members' : {}, "static_members" : {}, 'extends' : None, 'class_type' : None, "static_type" : None, 'alloc_type' : None, 'constructor' : None, 'class_name' : '', 'static_init' : None, 'init' : None}
+      classs.clz = {'class_members' : {}, 'inherited_members' : {}, "static_members" : {}, 'extends' : None, 'class_type' : None, "static_type" : None, 'alloc_type' : None, 'constructor' : None, 'class_name' : '', 'static_init' : None, 'init' : None}
       classs.clzs.append(classs.clz)
       return classs.clz
 
@@ -163,7 +163,7 @@ class classs:
 
       t = module.context.get_identified_type(cl['class_name'])
       types = classs.get_member_types(cl,module,False)
-      t.set_body(emit.rtti_type.as_pointer(), *types)
+      t.set_body(ir.IntType(32), *types)
       cl['class_type'] = t
 
       s = module.context.get_identified_type(cl['class_name'] + ".#static")
@@ -240,25 +240,26 @@ def set_package(p):
    global package
    package = p
 
-def gep(ptr,this,var,builder,static, extended):
+def gep(ptr,this,var,builder,static):
    #print traceback.print_stack()
    src = "static_members" if static else "class_members"
    if var in this[src]:
       i = this[src].keys().index(var)
       if static == False:
          i += 1
-      if static == False and extended == False and this['extends'] != None:
+      if static == False and this['extends'] != None:
          i += 1
-      #print "gep"
-      #print traceback.print_stack()
-      #print this
-      if extended:
-         v = builder.gep(ptr,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1),ir.Constant(ir.IntType(32),i)])
-      else:
-         v = builder.gep(ptr,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),i)])
-      return v
+      return builder.gep(ptr,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),i)])
+   if not static and var in this['inherited_members']:
+      chain = this['inherited_members'][var]
+      cchain = [ir.Constant(ir.IntType(32),0)]
+      for e in chain:
+        cchain.append(ir.Constant(ir.IntType(32),e))
+      ptr = builder.gep(ptr,cchain)
+      this = classs.get_class(ptr.type.pointee.name)
+      return gep(ptr,this,var.split(".")[-1],builder,static)
 
-def get_one(var,obj,objclz,extended,builder):
+def get_one(var,obj,objclz,builder):
    global context
 
    if var in context:
@@ -284,18 +285,21 @@ def get_one(var,obj,objclz,extended,builder):
       return (funcs.get(fq),obj)
 
    if var in objclz["static_members"]:
-      return gep(globals.get("#static." + objclz["class_name"]),objclz,var,builder, True,False)
+      return gep(globals.get("#static." + objclz["class_name"]),objclz,var,builder, True)
        
    if obj==None:
       return None
-   return gep(obj,objclz,var,builder, False, extended)
+   return gep(obj,objclz,var,builder, False)
 
 def get_one_poly(var,obj,objclz,builder):
-   t = get_one(var,obj,objclz,False,builder)
+   t = get_one(var,obj,objclz,builder)
    if t != None:
       return t
    if objclz['extends'] != None:
-      return get_one(var,obj,objclz['extends'],True,builder)
+      v = get_one(var,obj,objclz['extends'],builder)
+      if v!=None:
+        return v
+      return get_one_poly(var,obj,objclz['extends'],builder)
 
 def get(var,builder=None,test=False):  
    thistype = classs.clz

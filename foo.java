@@ -21,7 +21,24 @@ import life.stel.e.another;
  * A multiline comment
  */
 
-public final class ClassC {
+public final class ClassD {
+    public int mInh=4; 
+    public int mInh2=4; 
+    public static int sMem = 3;
+
+    public ClassD(){
+        mInh=5;
+    }
+
+    public int member4(int j) throws Exception {
+        int i=100;
+        TestClass.print_int(i);
+        return i+j;
+    }
+}
+
+
+public final class ClassC extends ClassD {
     public int mInherited=4; 
     public int mInherited2=4; 
     public static int sMember = 3;
@@ -257,6 +274,9 @@ public final class TestClass {
         i=theB.member3(2);
         print_int(i);
         print_int(theB.sMember);
+        print_int(theB.sMem);
+        print_int(theB.mInh);
+        print_int(theB.member4(2));
         i++;
     }
 

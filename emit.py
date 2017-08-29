@@ -83,7 +83,7 @@ def emit_literal(l,builder):
    if "FloatLiteral" in l:
        return emit_float_literal(l["FloatLiteral"][0],builder)
    if "StringLiteral" in l:
-       return strings.create(builder.function.name + "." + builder.block.name, l["StringLiteral"][0],builder.module)
+       return strings.create(builder.function.name + "." + builder.block.name, l["StringLiteral"][0],builder)
    assert(False)
 
 def emit_call(tup,suf,builder,constructor=None):
@@ -703,11 +703,14 @@ def emit_lifetime(var,t,action,builder):
 
 
 def emit_local_decl(t,lv,pas,builder):
-   if isinstance(t,ir.Aggregate) and t != string_type.as_pointer():
+   if isinstance(t,ir.Aggregate):
       nid = "." + builder.block.name + "." + lv["Identifier"][0]
       if pas == "method_phi":
-          atype = context.classs.get_class(t.name)
-          atype = context.classs.get_type(atype,builder.module,False,True)
+          if  t == string_type.as_pointer():
+             atype = string_alloc_type
+          else:
+             atype = context.classs.get_class(t.name)
+             atype = context.classs.get_type(atype,builder.module,False,True)
           context.create(lv["Identifier"][0], builder.gep(builder.alloca(atype),[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)]))
           context.funcs.get(builder.function.name)["allocs"][nid] = t
       elif pas == "method_body":
@@ -726,7 +729,7 @@ def emit_local_decl(t,lv,pas,builder):
       func = (context.get(t)[0],context.get(lv["Identifier"][0]))
       alloc = context.get(lv["Identifier"][0])
       alloc = to_atype(alloc,alloc.type,builder)
-      emit_call(func,lv,builder,builder.gep(alloc,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),0)]))
+      emit_call(func,lv,builder,utils.sizeof(rtti_type,builder))
 
    if "VariableInitializer" in lv:
       val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],builder)
@@ -813,8 +816,8 @@ def emit_method(method,static,native,constructor,module,pas):
          names.append("this")
 
       if constructor:
-         types.append(rtti_type.as_pointer())
-         names.append("#alloc")
+         types.append(ir.IntType(32))
+         names.append("#ofst")
 
       
       if "FormalParameterList" in fps:
@@ -871,7 +874,7 @@ def emit_method(method,static,native,constructor,module,pas):
            cfunc = ext["constructor"]
            ptr = func.args[0]
            dptr = cast.cast_ptr(ptr,cfunc.args[0].type,builder)
-           builder.call(cfunc,[dptr,func.args[1]])
+           builder.call(cfunc,[dptr,builder.add(func.args[1],utils.sizeof(cfunc.args[0].type,builder))])
        builder.call(context.classs.get_init(),[func.args[0],func.args[1]])
 
    methodbody = method["MethodBody"][0]
@@ -922,7 +925,7 @@ def emit_class(cls,module,pas):
       context.classs.set_type(None,None,ident)
 
    if pas == "decl_methods":
-      typo = ir.FunctionType(ir.VoidType(), [context.classs.get_type(context.classs.clz,module,False,False).as_pointer(), rtti_type.as_pointer()], False)
+      typo = ir.FunctionType(ir.VoidType(), [context.classs.get_type(context.classs.clz,module,False,False).as_pointer(), ir.IntType(32)], False)
       func = ir.Function(module, typo, context.classs.fqid() + ".#init")
       func.attributes.add("noinline")
       context.classs.set_init(func)
@@ -992,7 +995,7 @@ def emit_print_func(module,name,fmt,typo):
     pfn = context.get("printf")[0]["func"]
 
     #create global for string
-    global_fmt = strings.create("print_" + name.split("_")[1] + "_format", fmt + '\n\00', module)
+    global_fmt = strings.create("print_" + name.split("_")[1] + "_format", fmt + '\n\00', builder)
     global_fmt = strings.raw_cstr(global_fmt,builder)
 
     builder.call(pfn, [global_fmt, func.args[0]])
@@ -1040,19 +1043,16 @@ def emit_module(unit,pas):
       rtti_type.set_body(ir.IntType(32),ir.IntType(8),ir.IntType(32)) #type_id, flags, ref_cnt
 
       rope_type = module.context.get_identified_type('#rope_type')
-      rope_type.set_body(rtti_type.as_pointer(),rope_type.as_pointer(), rope_type.as_pointer(), ir.IntType(32), ir.IntType(32), ir.IntType(8), ir.IntType(8).as_pointer())
+      rope_type.set_body(ir.IntType(32),rope_type.as_pointer(), rope_type.as_pointer(), ir.IntType(32), ir.IntType(32), ir.IntType(8), ir.IntType(8).as_pointer())
 
       rope_alloc_type = module.context.get_identified_type('#rope_alloc_type')
       rope_alloc_type.set_body(rtti_type, rope_type)
 
       string_type = module.context.get_identified_type('#string_type')
-      string_type.set_body(rtti_type.as_pointer(),rope_type.as_pointer())
+      string_type.set_body(ir.IntType(32),rope_type.as_pointer())
 
       string_alloc_type = module.context.get_identified_type('#string_alloc_type')
       string_alloc_type.set_body(rtti_type, string_type)
-
-      strings.create("foo_string", 'lots and lots of foo and some bar\00', module)
-
 
 
    for t in unit["TypeDeclaration"]:
@@ -1065,6 +1065,18 @@ def emit_module(unit,pas):
           e = ir.GlobalVariable(module,context.classs.get_type(clz,module,True,False),ident)
           e.linkage = "internal"
           context.globals.create(ident,e)
+      #condense inherited members
+      for clz in context.classs.clzs:
+          cclz = clz['extends']
+          chain = [1]
+          while cclz != None:
+             for e in cclz['class_members']:
+               if e in clz['class_members'] or e in clz['inherited_members']:
+                  clz['inherited_members'][cclz['class_name'].split(".")[-1]] = chain[:]
+               else:
+                  clz['inherited_members'][e] = chain[:]
+             chain.append(1)
+             cclz = cclz['extends']
 
    if pas == "decl_methods":
        emit_print_funcs(module)
