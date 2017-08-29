@@ -701,6 +701,9 @@ def emit_lifetime(var,t,action,builder):
        builder.branch(end_block)
        builder.position_at_end(end_block)
 
+def initial_ref_cnt(alloc,builder):
+    ref_cnt = builder.gep(alloc,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),2)])
+    builder.store(ir.Constant(ir.IntType(32),1),ref_cnt);
 
 def emit_local_decl(t,lv,pas,builder):
    if isinstance(t,ir.Aggregate):
@@ -711,7 +714,9 @@ def emit_local_decl(t,lv,pas,builder):
           else:
              atype = context.classs.get_class(t.name)
              atype = context.classs.get_type(atype,builder.module,False,True)
-          context.create(lv["Identifier"][0], builder.gep(builder.alloca(atype),[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)]))
+          alloc = builder.alloca(atype)
+          initial_ref_cnt(alloc,builder)
+          context.create(lv["Identifier"][0], builder.gep(alloc,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)]))
           context.funcs.get(builder.function.name)["allocs"][nid] = t
       elif pas == "method_body":
           var = context.get(nid)
