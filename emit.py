@@ -671,11 +671,14 @@ def emit_member_decl(t,static,st,module,pas):
          context.thiss.pop()
 
 def to_atype(var,t,builder):
-    if context.is_pointer(t):
-       atype = context.classs.get_class(t.pointee.name)
+    if t == string_type.as_pointer():
+       atype = string_alloc_type
     else:
-        atype = context.classs.get_class(t.name)
-    atype = context.classs.get_type(atype,builder.module,False,True)
+       if context.is_pointer(t):
+          atype = context.classs.get_class(t.pointee.name)
+       else:
+          atype = context.classs.get_class(t.name)
+       atype = context.classs.get_type(atype,builder.module,False,True)
     sz = builder.gep(ir.Constant(atype.as_pointer(),None),[ir.Constant(ir.IntType(32),0), ir.Constant(ir.IntType(32),1)])
     sz = builder.ptrtoint(sz,ir.IntType(64))
     var= builder.ptrtoint(var,ir.IntType(64))
@@ -692,10 +695,13 @@ def emit_lifetime(var,t,action,builder):
        builder.cbranch(c,true_block,end_block)
        builder.position_at_end(true_block)
 
-    var = to_atype(var,t,builder)
-    var = builder.bitcast(var,ir.IntType(8).as_pointer())
+    vara = to_atype(var,t,builder)
+    var = builder.bitcast(vara,ir.IntType(8).as_pointer())
     sz = ir.Constant(ir.IntType(64),-1)
     builder.call(context.get("llvm.lifetime." + action)[0]["func"], [sz, var])
+
+    if action == "start":
+       initial_ref_cnt(vara,builder)
 
     if action == "end":
        builder.branch(end_block)
@@ -706,7 +712,7 @@ def initial_ref_cnt(alloc,builder):
     builder.store(ir.Constant(ir.IntType(32),1),ref_cnt);
 
 def emit_local_decl(t,lv,pas,builder):
-   if isinstance(t,ir.Aggregate):
+   if isinstance(t,ir.Aggregate) or t == string_type.as_pointer():
       nid = "." + builder.block.name + "." + lv["Identifier"][0]
       if pas == "method_phi":
           if  t == string_type.as_pointer():
@@ -716,11 +722,13 @@ def emit_local_decl(t,lv,pas,builder):
              atype = context.classs.get_type(atype,builder.module,False,True)
           alloc = builder.alloca(atype)
           initial_ref_cnt(alloc,builder)
-          context.create(lv["Identifier"][0], builder.gep(alloc,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)]))
-          context.funcs.get(builder.function.name)["allocs"][nid] = t
+          gep_var = builder.gep(alloc,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
+          context.create(lv["Identifier"][0], gep_var)
+          context.funcs.get(builder.function.name)["allocs"][nid] = atype
       elif pas == "method_body":
           var = context.get(nid)
-          context.create(lv["Identifier"][0], var)
+          gep_var = builder.gep(var,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
+          context.create(lv["Identifier"][0], gep_var)
           #lifetime management
           emit_lifetime(var,t,'start',builder)
       else:
