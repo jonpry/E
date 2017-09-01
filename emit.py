@@ -83,7 +83,8 @@ def emit_literal(l,builder):
    if "FloatLiteral" in l:
        return emit_float_literal(l["FloatLiteral"][0],builder)
    if "StringLiteral" in l:
-       return strings.create(builder.function.name + "." + builder.block.name, l["StringLiteral"][0],builder)
+       s = strings.create(builder.function.name + "." + builder.block.name, l["StringLiteral"][0],builder)
+       return s
    assert(False)
 
 def emit_call(tup,suf,builder,constructor=None):
@@ -712,7 +713,7 @@ def initial_ref_cnt(alloc,builder):
     builder.store(ir.Constant(ir.IntType(32),1),ref_cnt);
 
 def emit_local_decl(t,lv,pas,builder):
-   if isinstance(t,ir.Aggregate) or t == string_type.as_pointer():
+   if isinstance(t,ir.Aggregate):
       nid = "." + builder.block.name + "." + lv["Identifier"][0]
       if pas == "method_phi":
           if  t == string_type.as_pointer():
@@ -747,6 +748,8 @@ def emit_local_decl(t,lv,pas,builder):
    if "VariableInitializer" in lv:
       val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],builder)
       var = context.get(lv["Identifier"][0],builder)
+      if val.type == rope_type.as_pointer():
+         assert(False)
       if isinstance(var,ir.Type):
          context.set(lv["Identifier"][0], cast.explicit_cast(val,var,builder))
       else:
