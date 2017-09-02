@@ -73,7 +73,7 @@ def emit_integer_literal(il,builder):
       return ir.Constant(SIntType(sz), val)
    return ir.Constant(ir.IntType(sz), val)
 
-def emit_literal(l,builder):
+def emit_literal(l,pas,builder):
    if "IntegerLiteral" in l:
        return emit_integer_literal(l["IntegerLiteral"][0],builder)
    if "false" in l:
@@ -87,7 +87,7 @@ def emit_literal(l,builder):
        return s
    assert(False)
 
-def emit_call(tup,suf,builder,constructor=None):
+def emit_call(tup,suf,pas,builder,constructor=None):
    a = suf["Arguments"][0]
    args = []
    func = tup[0]["func"]
@@ -101,38 +101,38 @@ def emit_call(tup,suf,builder,constructor=None):
       for i in range(len(a["Expression"])):
           e = a["Expression"][i]
           t = func.args[i if static else (i+2 if constructor != None else i+1)]
-          e = emit_expression(e,builder)
+          e = emit_expression(e,pas,builder)
           e,foo,signed,flo = cast.auto_cast(e,t,builder,single=True,force_sign=str(t)[0])
           args.append(e)
    return builder.call(func,args)
 
 
-def emit_primary(p,builder):
+def emit_primary(p,pas,builder):
    if "Literal" in p:
-      return emit_literal(p["Literal"][0],builder)
+      return emit_literal(p["Literal"][0],pas,builder)
    if "QualifiedIdentifier" in p:
       var = p["QualifiedIdentifier"][0]
       if "IdentifierSuffix" in p:
          suf = p["IdentifierSuffix"][0]
          if "Arguments" in suf:
            tup = context.get(var)
-           return emit_call(tup,suf,builder)
+           return emit_call(tup,suf,pas,builder)
       else:
          t = context.get(var,builder)
          if context.is_pointer(t):
             return builder.load(t)
          return t
    if "ParExpression" in p:
-      v= emit_expression(p["ParExpression"][0]["Expression"][0],builder)
+      v= emit_expression(p["ParExpression"][0]["Expression"][0],pas,builder)
       return v
    assert(False)
 
-def emit_unary_expression(ue,builder):
+def emit_unary_expression(ue,pas,builder):
    if "Primary" in ue:
-      a = emit_primary(ue["Primary"][0],builder)
+      a = emit_primary(ue["Primary"][0],pas,builder)
    if "PrefixOp" in ue:
       po = ue["PrefixOp"][0]
-      a = emit_unary_expression(ue["UnaryExpression"][0],builder)
+      a = emit_unary_expression(ue["UnaryExpression"][0],pas,builder)
       if "TILDA" in po:
          a = builder.not_(a)
       elif "MINUS" in po:
@@ -145,7 +145,7 @@ def emit_unary_expression(ue,builder):
          assert(False)
    if "Type" in ue:
       t = get_type(ue["Type"][0],builder.module)
-      a = emit_unary_expression(ue["UnaryExpression"][0],builder)
+      a = emit_unary_expression(ue["UnaryExpression"][0],pas,builder)
       a = cast.explicit_cast(a,t,builder)
 
    if "PostfixOp" in ue:
@@ -166,11 +166,11 @@ def emit_unary_expression(ue,builder):
       return t
    return a
 
-def emit_multiplicative_expression(me,builder):
-   a = emit_unary_expression(me["UnaryExpression"][0],builder)
+def emit_multiplicative_expression(me,pas,builder):
+   a = emit_unary_expression(me["UnaryExpression"][0],pas,builder)
    if "StarDivModUnaryExpression" in me:
       for e in me["StarDivModUnaryExpression"]:
-         b = emit_unary_expression(e["UnaryExpression"][0],builder) 
+         b = emit_unary_expression(e["UnaryExpression"][0],pas,builder) 
          a,b,signed,flo = cast.auto_cast(a,b,builder,i=32)
          if "STAR" in e:
             a = builder.mul(a,b)
@@ -187,11 +187,11 @@ def emit_multiplicative_expression(me,builder):
 
    return a
 
-def emit_additive_expression(ae,builder):
-   a = emit_multiplicative_expression(ae["MultiplicativeExpression"][0],builder)
+def emit_additive_expression(ae,pas,builder):
+   a = emit_multiplicative_expression(ae["MultiplicativeExpression"][0],pas,builder)
    if "PlusOrMinusMultiplicativeExpression" in ae:
       for e in ae["PlusOrMinusMultiplicativeExpression"]:
-         b = emit_multiplicative_expression(e["MultiplicativeExpression"][0],builder)
+         b = emit_multiplicative_expression(e["MultiplicativeExpression"][0],pas,builder)
          a,b,signed,flo = cast.auto_cast(a,b,builder,i=32)
          if "PLUS" in e:
             if flo:
@@ -205,11 +205,11 @@ def emit_additive_expression(ae,builder):
                a = builder.sub(a,b)
    return a
 
-def emit_shift_expression(se,builder):
-   a = emit_additive_expression(se["AdditiveExpression"][0],builder)
+def emit_shift_expression(se,pas,builder):
+   a = emit_additive_expression(se["AdditiveExpression"][0],pas,builder)
    if "ShiftAdditiveExpression" in se:
      for e in se["ShiftAdditiveExpression"]:
-       b = emit_additive_expression(e["AdditiveExpression"][0],builder)
+       b = emit_additive_expression(e["AdditiveExpression"][0],pas,builder)
        a,b,signed,flo = cast.auto_cast(a,b,builder,i=32)
        if "SR" in e:
           if signed:
@@ -222,16 +222,16 @@ def emit_shift_expression(se,builder):
           a = builder.shl(a,b)
    return a
 
-def emit_relational_expression(re,builder):
+def emit_relational_expression(re,pas,builder):
    if "ReferenceType" in re:
       assert(False)
 
    if "ShiftExpression" in re:
-      a = emit_shift_expression(re["ShiftExpression"][0],builder)
+      a = emit_shift_expression(re["ShiftExpression"][0],pas,builder)
 
    if "RelationalShiftExpression" in re:
       for e in re["RelationalShiftExpression"]:
-         b = emit_shift_expression(e["ShiftExpression"][0],builder)
+         b = emit_shift_expression(e["ShiftExpression"][0],pas,builder)
          if "LT" in e:
            op = "<"
          if "LE" in e:
@@ -249,13 +249,13 @@ def emit_relational_expression(re,builder):
             a = builder.icmp_unsigned(op,a,b)
    return a
 
-def emit_equality_expression(ee,builder):
+def emit_equality_expression(ee,pas,builder):
    if "RelationalExpression" in ee:
-       a = emit_relational_expression(ee["RelationalExpression"][0],builder)
+       a = emit_relational_expression(ee["RelationalExpression"][0],pas,builder)
 
    if "EqualityRelationalExpression" in ee:
       for e in ee["EqualityRelationalExpression"]:
-         b = emit_relational_expression(e["RelationalExpression"][0],builder)
+         b = emit_relational_expression(e["RelationalExpression"][0],pas,builder)
          if "EQUAL" in e:
            op = "=="
          if "NOTEQUAL" in e:
@@ -269,71 +269,71 @@ def emit_equality_expression(ee,builder):
             a = builder.icmp_unsigned(op,a,b)
    return a
 
-def emit_and_expression(ae,builder):
-   a = emit_equality_expression(ae["EqualityExpression"][0],builder)
+def emit_and_expression(ae,pas,builder):
+   a = emit_equality_expression(ae["EqualityExpression"][0],pas,builder)
    if "AndEqualityExpression" in ae:
       for e in ae["AndEqualityExpression"]:
-         b = emit_equality_expression(e["EqualityExpression"][0],builder)
+         b = emit_equality_expression(e["EqualityExpression"][0],pas,builder)
          a,b,signed,flo = cast.auto_cast(a,b,builder,i=32)
          assert(not flo)
          a = builder.and_(a,b)
    return a
 
-def emit_exlusive_or_expression(ee,builder):
-   a = emit_and_expression(ee["AndExpression"][0],builder)
+def emit_exlusive_or_expression(ee,pas,builder):
+   a = emit_and_expression(ee["AndExpression"][0],pas,builder)
    if "HatAndExpression" in ee:
      for e in ee["HatAndExpression"]:
-        b = emit_and_expression(e["AndExpression"][0],builder)
+        b = emit_and_expression(e["AndExpression"][0],pas,builder)
         a,b,signed,flo = cast.auto_cast(a,b,builder,i=32)
         assert(not flo)
         a = builder.xor(a,b)      
    return a
 
-def emit_inclusive_or_expression(ie,builder):
-   a = emit_exlusive_or_expression(ie["ExclusiveOrExpression"][0],builder)
+def emit_inclusive_or_expression(ie,pas,builder):
+   a = emit_exlusive_or_expression(ie["ExclusiveOrExpression"][0],pas,builder)
    if "OrExclusiveOrExpression" in ie:
       for e in ie["OrExclusiveOrExpression"]:
-        b = emit_exlusive_or_expression(e["ExclusiveOrExpression"][0],builder)
+        b = emit_exlusive_or_expression(e["ExclusiveOrExpression"][0],pas,builder)
         a,b,signed,flo = cast.auto_cast(a,b,builder,i=32)
         assert(not flo)
         a = builder.or_(a,b)      
    return a
 
-def emit_conditional_and_expression(ce,builder):
+def emit_conditional_and_expression(ce,pas,builder):
    if "InclusiveOrExpression" in ce:
-      a = emit_inclusive_or_expression(ce["InclusiveOrExpression"][0],builder)
+      a = emit_inclusive_or_expression(ce["InclusiveOrExpression"][0],pas,builder)
    if "AndAndInclusiveOrExpression" in ce:
       for e in ce["AndAndInclusiveOrExpression"]:
-         b = emit_inclusive_or_expression(e["InclusiveOrExpression"][0],builder)
+         b = emit_inclusive_or_expression(e["InclusiveOrExpression"][0],pas,builder)
          a = builder.and_(a,b)
    return a
 
 
-def emit_condition_or_expression(ce, builder):
+def emit_condition_or_expression(ce, pas, builder):
    if "ConditionalAndExpression" in ce:
-      a = emit_conditional_and_expression(ce["ConditionalAndExpression"][0],builder)
+      a = emit_conditional_and_expression(ce["ConditionalAndExpression"][0],pas,builder)
    if "OrOrConditionalAndExpression" in ce:
       for e in ce["OrOrConditionalAndExpression"]:
-         b = emit_conditional_and_expression(e["ConditionalAndExpression"][0],builder)
+         b = emit_conditional_and_expression(e["ConditionalAndExpression"][0],pas,builder)
          a = builder.or_(a,b)
    return a
 
 
-def emit_conditional_expression(ce,builder):
+def emit_conditional_expression(ce,pas,builder):
    if "ConditionalOrExpression" in ce:
-      a = emit_condition_or_expression(ce["ConditionalOrExpression"][0],builder)
+      a = emit_condition_or_expression(ce["ConditionalOrExpression"][0],pas,builder)
    if "QueryConditionalOrExpression" in ce:
       for e in ce["QueryConditionalOrExpression"]:
-         ex = emit_expression(e["Expression"][0],builder)
-         ne = emit_conditional_expression(e,builder)
+         ex = emit_expression(e["Expression"][0],pas,builder)
+         ne = emit_conditional_expression(e,pas,builder)
          ex,ne,signed,flo = cast.auto_cast(ex,ne,builder)
          a = builder.select(cast.explicit_cast(a,ir.IntType(1),builder),ex,ne)
    return a
 
-def emit_expression(se, builder):
+def emit_expression(se, pas, builder):
    v = None
    if "ConditionalExpression" in se:
-      v = emit_conditional_expression(se["ConditionalExpression"][0],builder)
+      v = emit_conditional_expression(se["ConditionalExpression"][0],pas,builder)
    if "LeftHandSide" in se:
       for i in range(len(se["LeftHandSide"])):
          var = se["LeftHandSide"][i]["QualifiedIdentifier"][0]
@@ -421,19 +421,19 @@ def emit_expression(se, builder):
    assert v!=None
    return v
 
-def emit_return(r,builder):
-   builder.ret(emit_expression(r,builder))
+def emit_return(r,pas,builder):
+   builder.ret(emit_expression(r,pas,builder))
 
-def emit_par_expression(pe,builder):
-   return emit_expression(pe["Expression"][0],builder)
+def emit_par_expression(pe,pas,builder):
+   return emit_expression(pe["Expression"][0],pas,builder)
 
-def emit_for_init(fi,builder):
+def emit_for_init(fi,pas,builder):
    if "StatementExpression" in fi:
-      emit_expression(fi["StatementExpression"][0],builder)
+      emit_expression(fi["StatementExpression"][0],pas,builder)
 
-def emit_for_update(fu,builder):
+def emit_for_update(fu,pas,builder):
    if "StatementExpression" in fu:
-      emit_expression(fu["StatementExpression"][0],builder)
+      emit_expression(fu["StatementExpression"][0],pas,builder)
   
 init_ctx = {}
 for_ctx = {}
@@ -442,9 +442,9 @@ def emit_statement(s,pas,builder):
    global init_ctx, for_ctx
 
    if "StatementExpression" in s:
-      return emit_expression(s["StatementExpression"][0],builder)
+      return emit_expression(s["StatementExpression"][0],pas,builder)
    if "RETURN" in s:
-      return emit_return(s["Expression"][0],builder)
+      return emit_return(s["Expression"][0],pas,builder)
    if "Block" in s:
        context.push(False)
        block = s["Block"][0]
@@ -456,7 +456,7 @@ def emit_statement(s,pas,builder):
        do = "DO" in s
        context.push(False)
        if "ForInit" in s:
-          emit_for_init(s["ForInit"][0],builder)
+          emit_for_init(s["ForInit"][0],pas,builder)
        init_context = context.push(False)
        init_block = builder.block
 
@@ -479,7 +479,7 @@ def emit_statement(s,pas,builder):
 
        init_context = context.current()
 
-       cond = emit_expression(s["Expression"][0],builder)
+       cond = emit_expression(s["Expression"][0],pas,builder)
        cond = cast.explicit_cast(cond,ir.IntType(1),builder)
 
        true_block = builder.append_basic_block('bb')
@@ -528,7 +528,7 @@ def emit_statement(s,pas,builder):
           context.set(k,phi)
 
        if "ForUpdate" in s:
-          emit_for_update(s["ForUpdate"][0],builder)
+          emit_for_update(s["ForUpdate"][0],pas,builder)
 
        builder.branch(cond_block)
        context.breaks.pop()
@@ -572,7 +572,7 @@ def emit_statement(s,pas,builder):
 
        return
    if "IF" in s:
-       c = emit_par_expression(s["ParExpression"][0],builder)
+       c = emit_par_expression(s["ParExpression"][0],pas,builder)
        c = cast.explicit_cast(c,ir.IntType(1),builder)
        st_then = s["Statement"][0]
 
@@ -659,7 +659,7 @@ def emit_member_decl(t,static,st,module,pas):
 
       context.push(False)
 
-      val = emit_expression(st["VariableInitializer"][0]["Expression"][0],builder)
+      val = emit_expression(st["VariableInitializer"][0]["Expression"][0],pas,builder)
       val = cast.explicit_cast(val,t,builder)
       var = context.get(ident,builder)
       if context.is_pointer(var):
@@ -743,10 +743,10 @@ def emit_local_decl(t,lv,pas,builder):
       func = (context.get(t)[0],context.get(lv["Identifier"][0]))
       alloc = context.get(lv["Identifier"][0])
       alloc = to_atype(alloc,alloc.type,builder)
-      emit_call(func,lv,builder,utils.sizeof(rtti_type,builder))
+      emit_call(func,lv,pas,builder,utils.sizeof(rtti_type,builder))
 
    if "VariableInitializer" in lv:
-      val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],builder)
+      val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],pas,builder)
       var = context.get(lv["Identifier"][0],builder)
       if val.type == rope_type.as_pointer():
          assert(False)
