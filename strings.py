@@ -26,7 +26,7 @@ def local_string(rope,builder):
 
 def create(name,s,builder):
    if s in stringtab:
-       return stringtab[s]
+       return local_string(stringtab[s], builder)
 
    module = builder.module
 
@@ -44,11 +44,11 @@ def create(name,s,builder):
    rope = rope.gep([ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
 
    stringtab[s] = rope
-   return rope
+   return local_string(rope,builder)
 
-def raw_cstr(rope,builder):
-   #rope = builder.gep(string, [ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
-   #rope = builder.load(rope)
+def raw_cstr(string,builder):
+   rope = builder.gep(string, [ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
+   rope = builder.load(rope)
 
    cstr = builder.gep(rope,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),6)])
    return builder.load(cstr)
