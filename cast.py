@@ -28,7 +28,7 @@ def cast_ptr(v,t,builder):
      if clz['extends'] == None:
         break
      typ = clz['extends']['class_type'].name
-     v = builder.gep(v,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
+     v = builder.gep(v,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),0)])
      if v.type == t:
         return v
    return v

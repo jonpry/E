@@ -276,7 +276,7 @@ public final class TestClass {
         print_int(theB.sMember);
         print_int(theB.sMem);
         print_int(theB.mInh);
-        print_int(theB.member4(2));
+        print_int(theB.member4(2)); 
         i++;
     }
 

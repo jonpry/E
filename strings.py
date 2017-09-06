@@ -10,19 +10,15 @@ stringtab = {}
 
 def local_string(rope,builder):
 
-   string = builder.alloca(emit.string_alloc_type)
-   string_const = ir.Constant(emit.string_type, [ir.Constant(ir.IntType(32),0),rope])
-   stringa_const = ir.Constant(emit.string_alloc_type, [None,string_const])
-   builder.store(stringa_const,string)
-   
-   aptr = builder.gep(string,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
-   aptr = builder.gep(aptr,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),0)])
+   string = builder.alloca(emit.string_type)
+   string_const = ir.Constant(emit.string_type, [rope])
+   builder.store(string_const,string)
 
+   stringa_const = ir.Constant(emit.rtti_type, [None,None,None])   
+   stringa = builder.alloca(emit.rtti_type)
+   builder.store(stringa_const,stringa)
 
-   store = builder.store(utils.sizeof(emit.rtti_type,builder),aptr)
-
-   string = builder.gep(string,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
-   return string
+   return (stringa,string)
 
 def create(name,s,builder):
    if s in stringtab:
@@ -33,23 +29,23 @@ def create(name,s,builder):
    fmt_bytes = utils.make_bytearray(s.encode('ascii'))
    global_fmt = utils.global_constant(module, "#stringtab_bytes." + name, fmt_bytes)
 
-   rope = ir.GlobalVariable(module,emit.rope_alloc_type,"#stringtab_ropes." + name)
-   rope.global_constant = True
+   ropea = ir.GlobalVariable(module,emit.rtti_type,"#stringtab_rtti." + name)
+   ropea.global_constant = True
+   ropea_const = ir.Constant(emit.rtti_type, [None,None,None])
+   ropea.initializer = ropea_const
 
-   rope_const = ir.Constant(emit.rope_type, [None,None,None,None,fmt_bytes.type.count,None,global_fmt.bitcast(ir.IntType(8).as_pointer())])
-   ropea_const = ir.Constant(emit.rope_alloc_type, [None,rope_const])
-   rope.initializer = ropea_const
+   rope = ir.GlobalVariable(module,emit.rope_type,"#stringtab_ropes." + name)
+   rope_const = ir.Constant(emit.rope_type, [None,None,None,fmt_bytes.type.count,None,global_fmt.bitcast(ir.IntType(8).as_pointer())])
    rope.global_constant = True
+   rope.initializer = rope_const
   
-   rope = rope.gep([ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
-
    stringtab[s] = rope
    return local_string(rope,builder)
 
 def raw_cstr(string,builder):
-   rope = builder.gep(string, [ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
+   rope = builder.gep(string, [ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),0)],inbounds=True)
    rope = builder.load(rope)
 
-   cstr = builder.gep(rope,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),6)])
+   cstr = builder.gep(rope,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),5)],inbounds=True)
    return builder.load(cstr)
 
