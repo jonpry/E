@@ -11,14 +11,26 @@ stringtab = {}
 def local_string(rope,builder):
 
    string = builder.alloca(emit.string_type)
-   string_const = ir.Constant(emit.string_type, [rope])
+   stringa = builder.alloca(emit.rtti_type)
+
+   return local_init((string,stringa),rope,builder)
+
+def local_init(memory, rope,builder):
+
+   string = memory[0]
+   string_const = ir.Constant(emit.string_type, [rope[1],rope[0]])
    builder.store(string_const,string)
 
    stringa_const = ir.Constant(emit.rtti_type, [None,None,None])   
-   stringa = builder.alloca(emit.rtti_type)
+   stringa = memory[1]
    builder.store(stringa_const,stringa)
 
-   return (stringa,string)
+   return (string,stringa)
+
+
+def init(memory,s,builder):
+   assert(s in stringtab)
+   return local_init(memory, stringtab[s], builder)
 
 def create(name,s,builder):
    if s in stringtab:
@@ -39,11 +51,12 @@ def create(name,s,builder):
    rope.global_constant = True
    rope.initializer = rope_const
   
-   stringtab[s] = rope
-   return local_string(rope,builder)
+   ropet = (rope,ropea)
+   stringtab[s] = ropet 
+   return local_string(ropet,builder)
 
 def raw_cstr(string,builder):
-   rope = builder.gep(string, [ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),0)],inbounds=True)
+   rope = builder.gep(string, [ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)],inbounds=True)
    rope = builder.load(rope)
 
    cstr = builder.gep(rope,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),5)],inbounds=True)

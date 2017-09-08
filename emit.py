@@ -75,16 +75,23 @@ def emit_integer_literal(il,builder):
 
 def emit_string_literal(sl,pas,builder):
    nid = "." + builder.block.name + "." + str(hash(sl))
+   rnid = "." + builder.block.name + "." + str(hash(sl)) + "#rtti"
+
    if pas == "method_phi":
-      var, gep_var = strings.create(builder.function.name + "." + builder.block.name + "." + str(hash(sl)), sl,builder)
-      context.create(nid, gep_var)
-      context.funcs.get(builder.function.name)["allocs"][nid] = string_alloc_type
+      vart = strings.create(builder.function.name + "." + builder.block.name + "." + str(hash(sl)), sl,builder)
+      context.create(nid, vart)
+      context.funcs.get(builder.function.name)["allocs"][nid] = string_type
+      context.funcs.get(builder.function.name)["allocs"][rnid] = rtti_type
    elif pas == "method_body":
       var = context.get(nid)
-      gep_var = builder.gep(var,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
-      context.set(nid, gep_var)
-   context.naked(gep_var,var)
-   return gep_var
+      vara = context.get(rnid)
+      vart = (var,vara)
+      emit_lifetime(vart,0,"start",builder)
+      strings.init(vart,sl,builder)
+      context.naked(vart)
+      context.set(nid, vart)
+
+   return vart
 
 def emit_literal(l,pas,builder):
    if "IntegerLiteral" in l:
@@ -686,57 +693,44 @@ def emit_member_decl(t,static,st,module,pas):
       if not static:
          context.thiss.pop()
 
-def to_atype(var,t,builder):
-    if t == string_type.as_pointer():
-       atype = string_alloc_type
-    else:
-       if context.is_pointer(t):
-          atype = context.classs.get_class(t.pointee.name)
-       else:
-          atype = context.classs.get_class(t.name)
-       atype = context.classs.get_type(atype,builder.module,False,True)
- 
-    if var.type == atype.as_pointer():
-      return var
+def lifetime(var,action,builder):
+    var = builder.bitcast(var,ir.IntType(8).as_pointer())
+    sz = ir.Constant(ir.IntType(64),-1)
+    builder.call(context.get("llvm.lifetime." + action)['func']["func"], [sz, var])
 
-    sz = builder.gep(ir.Constant(atype.as_pointer(),None),[ir.Constant(ir.IntType(32),0), ir.Constant(ir.IntType(32),1)])
-    sz = builder.ptrtoint(sz,ir.IntType(64))
-    var= builder.ptrtoint(var,ir.IntType(64))
-    var = builder.sub(var,sz)
-    var = builder.inttoptr(var,atype.as_pointer())
-    return var
-
-def emit_lifetime(var,t,action,builder):
-    return 
+def emit_lifetime(var,refcnt,action,builder):
+    var,vara = var
     if action == "end":
        c = builder.icmp_unsigned("!=",builder.ptrtoint(var,ir.IntType(64)),ir.Constant(ir.IntType(64),0))
        old_block = builder.block
        true_block = builder.append_basic_block('bb')
-       end_block = builder.append_basic_block('bb')
-       builder.cbranch(c,true_block,end_block)
+       null_block = builder.append_basic_block('bb')
+       builder.cbranch(c,true_block,null_block)
        builder.position_at_end(true_block)
 
-    vara = to_atype(var,t,builder)
-
     if action == "end":
-       ref_cnt_p = builder.gep(vara,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),2)])
-       ref_cnt = ir.Constant(ir.IntType(32),1) #TODO: builder.load(ref_cnt_p);
+       ref_cnt_p = builder.gep(vara,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),2)])
+       ref_cnt = builder.load(ref_cnt_p);
        ref_cnt = builder.sub(ref_cnt,ir.Constant(ir.IntType(32),1));
        builder.store(ref_cnt,ref_cnt_p)
+       ref_cnt = builder.load(ref_cnt_p);
+       c = builder.icmp_unsigned("==",ref_cnt,ir.Constant(ir.IntType(32),0))
+       true_block = builder.append_basic_block('bb')
+       builder.cbranch(c,true_block,null_block)
+       builder.position_at_end(true_block)
 
-    var = builder.bitcast(vara,ir.IntType(8).as_pointer())
-    sz = ir.Constant(ir.IntType(64),-1)
-    builder.call(context.get("llvm.lifetime." + action)[0]["func"], [sz, var])
+    lifetime(var,action,builder)
+    lifetime(vara,action,builder)
 
-    if action == "start":
+    if action == "start" and refcnt != 0:
        initial_ref_cnt(vara,builder)
 
     if action == "end":
-       builder.branch(end_block)
-       builder.position_at_end(end_block)
+       builder.branch(null_block)
+       builder.position_at_end(null_block)
 
 def initial_ref_cnt(alloc,builder):
-    ref_cnt = builder.gep(alloc,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),2)])
+    ref_cnt = builder.gep(alloc,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),2)])
     builder.store(ir.Constant(ir.IntType(32),1),ref_cnt);
 
 def emit_local_decl(t,lv,pas,builder):
@@ -746,7 +740,7 @@ def emit_local_decl(t,lv,pas,builder):
       if pas == "method_phi":
           alloc = builder.alloca(t)
           alloca = builder.alloca(rtti_type)
-          #TODO: initial_ref_cnt(alloca,builder)
+          initial_ref_cnt(alloca,builder)
           context.create(lv["Identifier"][0], (alloc,alloca))
           context.funcs.get(builder.function.name)["allocs"][nid] = t
           context.funcs.get(builder.function.name)["allocs"][rnid] = rtti_type
@@ -755,7 +749,7 @@ def emit_local_decl(t,lv,pas,builder):
           vara = context.get(rnid)
           context.create(lv["Identifier"][0], (var,vara))
           #lifetime management
-          emit_lifetime(var,t,'start',builder)
+          emit_lifetime((var,vara),1,'start',builder)
       else:
           assert(False)
    else:
@@ -770,6 +764,12 @@ def emit_local_decl(t,lv,pas,builder):
    if "VariableInitializer" in lv:
       val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],pas,builder)
       var = context.get(lv["Identifier"][0],builder)
+      if isinstance(val,tuple):
+         refcnt_p = builder.gep(val[1],[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),2)])
+         builder.store(ir.Constant(ir.IntType(32),1),refcnt_p)
+         #print "set: " + str(val)
+         context.set(lv["Identifier"][0], val)
+         return
       if isinstance(val.type,ir.PointerType):
          context.set(lv["Identifier"][0], cast.explicit_cast(val,var,builder))
          alloc = context.get_naked(val)[1]
@@ -807,7 +807,7 @@ def get_type(t,module):
    if "ClassType" in t:
      ident = t["ClassType"][0]["Identifier"][0]
      if ident == "String":
-        return string_type.as_pointer()
+        return (string_type.as_pointer(),rtti_type.as_pointer())
      return context.classs.get_class_type(ident,module)
 
    print json.dumps(t)	
@@ -1033,7 +1033,7 @@ def emit_print_func(module,name,fmt,typo):
     pfn = context.get("printf")['func']["func"]
 
     #create global for string
-    global_fmt = strings.create("print_" + name.split("_")[1] + "_format", fmt + '\n\00', builder)[1]
+    global_fmt = strings.create("print_" + name.split("_")[1] + "_format", fmt + '\n\00', builder)[0]
     global_fmt = strings.raw_cstr(global_fmt,builder)
 
     builder.call(pfn, [global_fmt, func.args[0]])
@@ -1085,7 +1085,7 @@ def emit_module(unit,pas):
       rope_type.set_body(rope_type.as_pointer(), rope_type.as_pointer(), ir.IntType(32), ir.IntType(32), ir.IntType(8), ir.IntType(8).as_pointer())
 
       string_type = module.context.get_identified_type('#string_type')
-      string_type.set_body(rope_type.as_pointer())
+      string_type.set_body(rtti_type.as_pointer(), rope_type.as_pointer())
 
 
    for t in unit["TypeDeclaration"]:

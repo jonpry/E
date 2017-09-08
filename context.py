@@ -329,7 +329,6 @@ def set(var, val, builder=None):
    if var in context:
       context[var] = val
       return 
-   print var
    assert(False)
 
 def create(var,v):
@@ -391,14 +390,18 @@ def pop(builder):
 
    diff = removed_in(ret,context)
    for n,t in diff:
+      if '.bb.' in n:
+         continue
       if isinstance(t,tuple):
-        emit.emit_lifetime(t,t[0].type,'end',builder)
+        #print (n,t)
+        if not isinstance(t[0],ir.PointerType):
+           emit.emit_lifetime(t,1,'end',builder)
 
    return (context.copy(),diff)
 
 nakeds = []
-def naked(vis,alloc):
-   nakeds.append((vis,alloc))
+def naked(v):
+   nakeds.append(v)
 
 def get_naked(v):
    for vis,a in nakeds:
