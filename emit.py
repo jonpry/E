@@ -8,6 +8,7 @@ from llvmlite import ir
 from llvmlite import binding
 from signed import SIntType, Builder
 import context, cast, strings, utils
+from superphi import superphi
 
 def emit_float_literal(fl,builder):
    dat = fl["DecimalFloat"][0]
@@ -141,6 +142,8 @@ def emit_primary(p,pas,builder):
            return emit_call(tup,suf,pas,builder,None)
       else:
          t = context.get(var,builder)
+         if isinstance(t,tuple):
+            return t
          if context.is_pointer(t):
             return builder.load(t)
          return t
@@ -363,7 +366,16 @@ def emit_expression(se, pas, builder):
 
          cv = context.get(var,builder)
          if "EQU" in op:
-             if context.is_pointer(cv):
+             if isinstance(v,tuple):
+               #TODO: reduce duplication of code with variable initializer
+               #TODO: increment reference on pointer going out of scope
+               refcnt_p = builder.gep(v[1],[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),2)])
+               refcnt = builder.load(refcnt_p)
+               refcnt = builder.add(refcnt,ir.Constant(ir.IntType(32),1))
+               builder.store(refcnt,refcnt_p)
+               context.set(var, v)
+               return v
+             elif context.is_pointer(cv):
                 v = cast.explicit_cast(v,cv.type.pointee,builder)
                 builder.store(v,cv)
              else:
@@ -470,8 +482,9 @@ def emit_statement(s,pas,builder):
    if "Block" in s:
        context.push(False)
        block = s["Block"][0]
-       for bs in block["BlockStatements"][0]["BlockStatement"]:
-          emit_blockstatement(bs,pas,builder)
+       if "BlockStatements" in block:
+          for bs in block["BlockStatements"][0]["BlockStatement"]:
+             emit_blockstatement(bs,pas,builder)
        context.pop(builder)
        return
    if "FOR" in s or "WHILE" in s:
@@ -489,13 +502,13 @@ def emit_statement(s,pas,builder):
        phis = {}
        if json.dumps(s) in for_ctx:
          for k in [k[0] for k in context.different_in(init_context,for_ctx[json.dumps(s)])]:
-            phi = builder.phi(init_context[k].type)
+            phi = superphi(builder,init_context[k])
             phi.add_incoming(init_context[k],init_block)
-            context.set(k,phi)
+            context.set(k,phi.phi)
             phis[k] = phi
 
        if do:
-          phi = builder.phi(ir.IntType(1))
+          phi = superphi(builder,ir.IntType(1))
           phi.add_incoming(ir.Constant(ir.IntType(1),1),init_block)
           doreg = phi
 
@@ -509,7 +522,7 @@ def emit_statement(s,pas,builder):
        update_block = builder.append_basic_block('bb')
  
        if do:
-         cond = builder.or_(doreg,cond)
+         cond = builder.or_(doreg.phi,cond)
 
        builder.cbranch(cond,true_block,end_block)
        builder.position_at_end(true_block)
@@ -538,7 +551,7 @@ def emit_statement(s,pas,builder):
        #print ncontinues
        #exit(0)
        for k,a in ncontinues.items():
-          phi = builder.phi(update_context[k].type)
+          phi = superphi(builder,update_context[k])
           phi.add_incoming(update_context[k],last_block)
           r = continues[:]
           for c in a:
@@ -547,7 +560,7 @@ def emit_statement(s,pas,builder):
               r.remove(c)
           for c in r:
             phi.add_incoming(c[1][k],c[0])
-          context.set(k,phi)
+          context.set(k,phi.phi)
 
        if "ForUpdate" in s:
           emit_for_update(s["ForUpdate"][0],pas,builder)
@@ -565,7 +578,7 @@ def emit_statement(s,pas,builder):
        if json.dumps(s) in for_ctx:
           for k,v in phis.items():
              v.add_incoming(for_context[k],update_block)
-             context.set(k,v)
+             context.set(k,v.phi)
 
           if do:
              doreg.add_incoming(ir.Constant(ir.IntType(1),0),update_block)
@@ -579,7 +592,7 @@ def emit_statement(s,pas,builder):
                    nbreaks[k] = [b]
           
           for k,a in nbreaks.items():
-              phi = builder.phi(init_context[k].type)
+              phi = superphi(builder,init_context[k])
               phi.add_incoming(context.get(k),cond_block)
               s = breaks[:]
               for b in a:
@@ -588,7 +601,7 @@ def emit_statement(s,pas,builder):
                    s.remove(b)
               for b in s:
                 phi.add_incoming(b[1][k],b[0])                
-              context.set(k,phi)
+              context.set(k,phi.phi)
        else:
           for_ctx[json.dumps(s)] = for_context 
 
@@ -638,7 +651,9 @@ def emit_statement(s,pas,builder):
        union = list(set(union))
        if has_phi:
           for k in union:
-             phi = builder.phi(old_context[k].type)
+             if '.bb.' in k:
+               continue          
+             phi = superphi(builder,old_context[k])
              if k in then_set:
                 phi.add_incoming(true_context[k],true_block)
              else:
@@ -647,7 +662,7 @@ def emit_statement(s,pas,builder):
                 phi.add_incoming(false_context[k],false_block)
              else:
                 phi.add_incoming(old_context[k],false_block)
-             context.set(k,phi)
+             context.set(k,phi.phi)
        return
    if "BREAK" in s:
        builder.branch(context.breaks.get()[0])
@@ -766,18 +781,26 @@ def emit_local_decl(t,lv,pas,builder):
       var = context.get(lv["Identifier"][0],builder)
       if isinstance(val,tuple):
          refcnt_p = builder.gep(val[1],[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),2)])
-         builder.store(ir.Constant(ir.IntType(32),1),refcnt_p)
+         refcnt = builder.load(refcnt_p)
+         refcnt = builder.add(refcnt,ir.Constant(ir.IntType(32),1))
+         builder.store(refcnt,refcnt_p)
          #print "set: " + str(val)
          context.set(lv["Identifier"][0], val)
          return
-      if isinstance(val.type,ir.PointerType):
-         context.set(lv["Identifier"][0], cast.explicit_cast(val,var,builder))
-         alloc = context.get_naked(val)[1]
-         emit_lifetime(alloc,var,'start',builder)
       if isinstance(var,ir.Type):
          context.set(lv["Identifier"][0], cast.explicit_cast(val,var,builder))
       else:
          context.set(lv["Identifier"][0], cast.explicit_cast(val,var.type,builder))
+   else:
+      var = context.get(lv["Identifier"][0],builder)
+      if isinstance(var,tuple):
+         if isinstance(var[0],ir.Type):
+            a = builder.inttoptr(ir.Constant(ir.IntType(64),0),var[0])
+            b = builder.inttoptr(ir.Constant(ir.IntType(64),0),var[1])
+            val = (a,b)
+            context.set(lv["Identifier"][0], val)
+         return
+      context.set(lv["Identifier"][0], cast.explicit_cast(ir.Constant(ir.IntType(32),0),var,builder))
 
 
 def get_type(t,module):
