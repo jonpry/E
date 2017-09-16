@@ -120,12 +120,17 @@ def emit_call(tup,suf,pas,builder,memory):
       else:
          args.append(memory)
    if "Expression" in a:
+      ofst = 0
       for i in range(len(a["Expression"])):
           e = a["Expression"][i]
-          t = func.args[i if static else i+2]
+          t = func.args[(i if static else i+2) + ofst]
           e = emit_expression(e,pas,builder)
-          e,foo,signed,flo = cast.auto_cast(e,t,builder,single=True,force_sign=str(t)[0])
-          args.append(e)
+          if isinstance(e,tuple):
+            args.append(e[0])
+            args.append(e[1])
+          else:
+            e,foo,signed,flo = cast.auto_cast(e,t,builder,single=True,force_sign=str(t)[0])
+            args.append(e)
    return builder.call(func,args)
 
 def emit_primary(p,pas,builder):
@@ -1084,6 +1089,7 @@ def emit_print_funcs(module):
     emit_print_func(module, "print_long", "%ld", ir.IntType(64))
     emit_print_func(module, "print_float", "%f", ir.DoubleType())
     emit_print_func(module, "print_double", "%f", ir.DoubleType())
+    strings.emit_print(module);
 
 module = None
 def emit_module(unit,pas):

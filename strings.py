@@ -4,7 +4,8 @@ import sys
 import traceback
 from llvmlite import ir
 from collections import OrderedDict
-import emit, utils, ropes
+import emit, utils, ropes, context
+from signed import SIntType, Builder
 
 stringtab = {}
 
@@ -61,4 +62,25 @@ def raw_cstr(string,builder):
 
    cstr = builder.gep(rope,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),5)],inbounds=True)
    return builder.load(cstr)
+
+def emit_print(module):
+    name = "print_string"
+    func = context.funcs.get_native(name)
+    if func == None:
+       fnty = ir.FunctionType(ir.VoidType(), [emit.string_type.as_pointer(),emit.rtti_type.as_pointer()])
+       func = ir.Function(module, fnty, name=name)
+       func.attributes.add("noinline")
+       context.funcs.create(name,{"func" : func, "names" : ["v"], "ret" : ir.VoidType(), "static" : True, "native" : True, "allocs" : {}})
+    
+    block = func.append_basic_block('bb')
+    builder = Builder(block)
+    pfn = context.get("printf")['func']["func"]
+
+    #create global for string
+    global_fmt = create("print_" + name.split("_")[1] + "_format", '%s\n\00', builder)[0]
+    global_fmt = raw_cstr(global_fmt,builder)
+
+    builder.call(pfn, [global_fmt, raw_cstr(func.args[0],builder)])
+    builder.ret_void()
+
 
