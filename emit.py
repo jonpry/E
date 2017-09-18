@@ -128,6 +128,7 @@ def emit_call(tup,suf,pas,builder,memory):
           if isinstance(e,tuple):
             args.append(e[0])
             args.append(e[1])
+            ofst = ofst + 1
           else:
             e,foo,signed,flo = cast.auto_cast(e,t,builder,single=True,force_sign=str(t)[0])
             args.append(e)
@@ -890,8 +891,14 @@ def emit_method(method,static,native,constructor,module,pas):
         fps = fps["FormalParameterList"][0]["FormalParameter"]
         for fp in fps:
            t = get_type(fp["Type"][0],module)
-           types.append(t)
-           names.append(fp["VariableDeclaratorId"][0]["Identifier"][0])
+           if isinstance(t,tuple):
+              types.append(t[0])
+              types.append(t[1])
+              names.append(fp["VariableDeclaratorId"][0]["Identifier"][0])
+              names.append(fp["VariableDeclaratorId"][0]["Identifier"][0] + "#rtti")
+           else:
+              types.append(t)
+              names.append(fp["VariableDeclaratorId"][0]["Identifier"][0])
 
       native_name = name
       sep = ".#" if constructor else "."
@@ -922,6 +929,13 @@ def emit_method(method,static,native,constructor,module,pas):
    if not static:
        context.thiss.push(func.args[:2])
    for i in range(len(func.args)):
+     if "#rtti" in fstruct["names"][i]:
+       continue
+     if i < (len(func.args)-1):
+       if "#rtti" in fstruct["names"][i+1]:
+         arg = (func.args[i],func.args[i+1])
+         context.create(fstruct["names"][i], arg)
+         continue
      arg = func.args[i]
      context.create(fstruct["names"][i], arg)
     
