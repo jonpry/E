@@ -207,8 +207,11 @@ class classs:
       if static:
          src = "static_members"
       t = []
-      if not static and clz['extends'] != None:
-        t.append(classs.get_type(clz['extends'],module,static))
+      if not static:
+        if clz['extends'] != None:
+           t.append(classs.get_type(clz['extends'],module,static))
+        else:
+           t.append(emit.rtti_type)
       for k,v in clz[src].items():
         t.append(v)
       return t
@@ -238,17 +241,16 @@ def gep(ptr,this,var,builder,static):
    src = "static_members" if static else "class_members"
    if var in this[src]:
       i = this[src].keys().index(var)
-      if static == False and this['extends'] != None:
+      if static == False:
          i += 1
-      if isinstance(ptr,tuple):
-         ptr = ptr[0]
       return builder.gep(ptr,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),i)])
    if not static and var in this['inherited_members']:
       chain = this['inherited_members'][var]
       cchain = [ir.Constant(ir.IntType(32),0)]
       for e in chain:
         cchain.append(ir.Constant(ir.IntType(32),e))
-      ptr = ptr[0]
+      print cchain
+      print var
       ptr = builder.gep(ptr,cchain)
       this = classs.get_class(ptr.type.pointee.name)
       return gep(ptr,this,var.split(".")[-1],builder,static)
@@ -322,7 +324,7 @@ def get(var,builder=None,test=False):
        thistype = classs.get_class_fq(package + "." + v)
      else:
        thisvar = e
-       thistype = classs.get_class_fq(e[0].type.pointee.name)
+       thistype = classs.get_class_fq(e.type.pointee.name)
 
 
 def set(var, val, builder=None):
@@ -392,9 +394,10 @@ def pop(builder):
    for n,t in diff:
       if '.bb.' in n:
          continue
-      if isinstance(t,tuple):
+      #TODO: enoimpl
+      if is_pointer(t):
         #print (n,t)
-        if not isinstance(t[0],ir.PointerType):
+        if not isinstance(t,ir.Argument):
            emit.emit_lifetime(t,1,'end',builder)
 
    return (context.copy(),diff)
@@ -404,8 +407,7 @@ def naked(v):
    nakeds.append(v)
 
 def get_naked(v):
-   for vis,a in nakeds:
+   for vis in nakeds:
       if v == vis:
-        nakeds.remove((vis,a))
-        return (vis,a)
-
+        nakeds.remove(vis)
+        return vis
