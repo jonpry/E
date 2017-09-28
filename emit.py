@@ -75,9 +75,9 @@ def emit_integer_literal(il,builder):
    return ir.Constant(ir.IntType(sz), val)
 
 def emit_string_literal(sl,pas,builder):
-   nid = "." + builder.block.name + "." + str(hash(sl))
+   nid = "." + builder.block.name + "." + str((sl))
    if pas == "method_phi":
-      var = strings.create(builder.function.name + "." + builder.block.name + "." + str(hash(sl)), sl,builder)
+      var = strings.create(builder.function.name + nid, sl,builder)
       context.create(nid, var)
       context.funcs.get(builder.function.name)["allocs"][nid] = string_type
    elif pas == "method_body":
@@ -359,12 +359,9 @@ def emit_expression(se, pas, builder):
                if isinstance(cv.type.pointee,ir.Aggregate):
                  #TODO: reduce duplication of code with variable initializer
                  #TODO: increment reference on pointer going out of scope
-                 refcnt_p = get_rtti(cv,builder)
-                 refcnt_p = builder.gep(refcnt_p,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),2)])
-                 refcnt = builder.load(refcnt_p)
-                 refcnt = builder.add(refcnt,ir.Constant(ir.IntType(32),1))
-                 builder.store(refcnt,refcnt_p)
-                 context.set(var, cv)
+                 emit_lifetime(cv,1,"end",builder)
+                 mod_ref_cnt(v,1,builder)
+                 context.set(var, v)
                  return v
                else:
                 v = cast.explicit_cast(v,cv.type.pointee,builder)
@@ -714,12 +711,7 @@ def emit_lifetime(var,refcnt,action,builder):
        builder.position_at_end(true_block)
 
     if action == "end":
-       ref_cnt_p = get_rtti(var,builder)
-       ref_cnt_p = builder.gep(ref_cnt_p,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),2)])
-       ref_cnt = builder.load(ref_cnt_p);
-       ref_cnt = builder.sub(ref_cnt,ir.Constant(ir.IntType(32),1));
-       builder.store(ref_cnt,ref_cnt_p)
-       ref_cnt = builder.load(ref_cnt_p);
+       ref_cnt = mod_ref_cnt(var,-1,builder)
        c = builder.icmp_unsigned("==",ref_cnt,ir.Constant(ir.IntType(32),0))
        true_block = builder.append_basic_block('bb')
        builder.cbranch(c,true_block,null_block)
@@ -739,6 +731,14 @@ def get_rtti(alloc,builder):
     while ref_cnt.type != rtti_type.as_pointer():
         ref_cnt = builder.gep(ref_cnt,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),0)])
     return ref_cnt
+
+def mod_ref_cnt(val,i,builder):
+    refcnt_p = get_rtti(val,builder)
+    refcnt_p = builder.gep(refcnt_p,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),2)])
+    refcnt = builder.load(refcnt_p)
+    refcnt = builder.add(refcnt,ir.Constant(ir.IntType(32),i))
+    builder.store(refcnt,refcnt_p)
+    return refcnt
 
 def initial_ref_cnt(alloc,builder):
     ref_cnt = get_rtti(alloc,builder)
@@ -772,11 +772,8 @@ def emit_local_decl(t,lv,pas,builder):
    if "VariableInitializer" in lv:
       val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],pas,builder)
       var = context.get(lv["Identifier"][0],builder)
-      if isinstance(val,tuple):
-         refcnt_p = builder.gep(val[1],[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),2)])
-         refcnt = builder.load(refcnt_p)
-         refcnt = builder.add(refcnt,ir.Constant(ir.IntType(32),1))
-         builder.store(refcnt,refcnt_p)
+      if context.is_pointer(val):
+         mod_ref_cnt(val,1,builder)
          #print "set: " + str(val)
          context.set(lv["Identifier"][0], val)
          return
