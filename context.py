@@ -249,8 +249,6 @@ def gep(ptr,this,var,builder,static):
       cchain = [ir.Constant(ir.IntType(32),0)]
       for e in chain:
         cchain.append(ir.Constant(ir.IntType(32),e))
-      print cchain
-      print var
       ptr = builder.gep(ptr,cchain)
       this = classs.get_class(ptr.type.pointee.name)
       return gep(ptr,this,var.split(".")[-1],builder,static)

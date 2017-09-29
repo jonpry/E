@@ -280,6 +280,10 @@ public final class TestClass {
         i++;
     }
 
+    public static void new_test(int j){
+        ClassB theB;// = new ClassB();
+    }
+
     public static int main() throws Exception {
         constant_int_test();
         constant_float_test();

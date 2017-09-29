@@ -139,6 +139,9 @@ def emit_primary(p,pas,builder):
    if "ParExpression" in p:
       v= emit_expression(p["ParExpression"][0]["Expression"][0],pas,builder)
       return v
+   if "NEW" in p:
+      print "foo"
+   print json.dumps(p)
    assert(False)
 
 def emit_unary_expression(ue,pas,builder):
@@ -746,7 +749,9 @@ def initial_ref_cnt(alloc,builder):
     builder.store(ir.Constant(ir.IntType(32),1),ref_cnt);
 
 def emit_local_decl(t,lv,pas,builder):
-   if isinstance(t,ir.Aggregate):
+   has_args = "Arguments" in lv
+   has_init = "VariableInitializer" in lv
+   if isinstance(t,ir.Aggregate) and has_args:
       nid = "." + builder.block.name + "." + lv["Identifier"][0]
       if pas == "method_phi":
           alloc = builder.alloca(t)
@@ -763,13 +768,12 @@ def emit_local_decl(t,lv,pas,builder):
    else:
       context.create(lv["Identifier"][0], t)
 
-   if "Arguments" in lv: #Constructor
+   if has_args: #Constructor
       t = t.name
       t += ".#" + t.split(".")[-1]
       func = {'func' : context.get(t)['func'], 'this': context.get(lv["Identifier"][0])}
       emit_call(func,lv,pas,builder,None)
-
-   if "VariableInitializer" in lv:
+   elif has_init:
       val = emit_expression(lv["VariableInitializer"][0]["Expression"][0],pas,builder)
       var = context.get(lv["Identifier"][0],builder)
       if context.is_pointer(val):
@@ -783,9 +787,10 @@ def emit_local_decl(t,lv,pas,builder):
          context.set(lv["Identifier"][0], cast.explicit_cast(val,var.type,builder))
    else:
       var = context.get(lv["Identifier"][0],builder)
-      if context.is_pointer(var):
-         return
-      context.set(lv["Identifier"][0], cast.explicit_cast(ir.Constant(ir.IntType(32),0),var,builder))
+      if isinstance(t,ir.Aggregate):
+        context.set(lv["Identifier"][0], builder.inttoptr(ir.Constant(ir.IntType(64),0),t.as_pointer()))
+      else:
+        context.set(lv["Identifier"][0], cast.explicit_cast(ir.Constant(ir.IntType(32),0),var,builder))
 
 
 def get_type(t,module):
