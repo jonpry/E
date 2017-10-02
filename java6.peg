@@ -338,6 +338,7 @@ BlockStatement
 
 Statement
     = Block
+    / DELETE Identifier SEMI
     / ASSERT Expression (COLON Expression)? SEMI
     / IF ParExpression Statement (ELSE Statement)?
     / FOR LPAR ForInit? SEMI Expression? SEMI ForUpdate? RPAR Statement
@@ -930,6 +931,7 @@ Keyword
       / "long"
       / "native"
       / "new"
+      / "delete"
       / "null"
       / "package"
       / "private"
@@ -974,6 +976,7 @@ IMPORT       = "import"       !LetterOrDigit Spacing ;
 INTERFACE    = "interface"    !LetterOrDigit Spacing ;
 INSTANCEOF   = "instanceof"   !LetterOrDigit Spacing ;
 NEW          = "new"          !LetterOrDigit Spacing ;
+DELETE       = "delete"       !LetterOrDigit Spacing ;
 PACKAGE      = "package"      !LetterOrDigit Spacing ;
 RETURN       = "return"       !LetterOrDigit Spacing ;
 STATIC       = "static"       !LetterOrDigit Spacing ;

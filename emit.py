@@ -682,6 +682,12 @@ def emit_statement(s,pas,builder):
        builder.branch(context.continues.get()[0])
        context.continues.get()[1].append((builder.block,context.current()))
        return 
+   if "DELETE" in s:
+      ident = s["Identifier"][0]
+      val = context.get(ident,builder)
+      builder.call(context.get("free")["func"]["func"], [builder.bitcast(val,ir.IntType(8).as_pointer())])
+      context.set(ident,builder.inttoptr(ir.Constant(ir.IntType(64),0),val.type))
+      return
    print json.dumps(s)
    assert(False)
 
