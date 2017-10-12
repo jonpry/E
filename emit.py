@@ -125,19 +125,35 @@ def size_of(t,builder):
    sz = builder.ptrtoint(sz,ir.IntType(32))
    return sz
 
+def create_array_type(t):
+   return ir.LiteralStructType([rtti_type,ir.ArrayType(ir.IntType(32),4),ir.ArrayType(t,0)])
+
 def emit_creator(c,pas,builder):
-   ident = c["CreatedName"][0]["Identifier"][0]
-   rest = c["ClassCreatorRest"][0]
-   cz = context.get(ident)
-   t = cz['class_name']
-   t += ".#" + t.split(".")[-1]
-   at = context.classs.get_class_type(ident,builder.module)
-   ret = builder.call(context.get("malloc")["func"]["func"], [size_of(at,builder)])
-   ret = builder.bitcast(ret,at.as_pointer())
-   initial_ref_cnt(ret,0,"stack",builder)
-   func = {'func' : context.get(t)['func'], 'this': ret}
-   emit_call(func,rest,pas,builder,None)
-   return ret
+   if "BasicType" in c:
+     t = get_type(c,builder)
+     a = c["ArrayCreatorRest"][0]
+     d = emit_expression(a["DimExpr"][0]["Expression"][0],pas,builder)
+     nt = create_array_type(t)
+     sz = size_of(nt,builder)
+     sz2 = size_of(t,builder)
+     sz = builder.add(sz,sz2)
+     ret = builder.call(context.get("malloc")["func"]["func"], [sz])
+     ret = builder.bitcast(ret,nt.as_pointer())
+     initial_ref_cnt(ret,0,"memory",builder)
+     return ret
+   else:
+     ident = c["CreatedName"][0]["Identifier"][0]
+     rest = c["ClassCreatorRest"][0]
+     cz = context.get(ident)
+     t = cz['class_name']
+     t += ".#" + t.split(".")[-1]
+     at = context.classs.get_class_type(ident,builder.module)
+     ret = builder.call(context.get("malloc")["func"]["func"], [size_of(at,builder)])
+     ret = builder.bitcast(ret,at.as_pointer())
+     initial_ref_cnt(ret,0,"memory",builder)
+     func = {'func' : context.get(t)['func'], 'this': ret}
+     emit_call(func,rest,pas,builder,None)
+     return ret
 
 def emit_primary(p,pas,builder):
    if "Literal" in p:
