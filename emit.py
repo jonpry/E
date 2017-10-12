@@ -808,9 +808,9 @@ def initial_ref_cnt(alloc,cnt,t,builder):
     builder.store(ir.Constant(ir.IntType(32),cnt),rp);
     pt = builder.gep(ref_cnt,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
     if t == "memory":
-        builder.store(ir.Constant(ir.IntType(32),0),pt);
+        builder.store(ir.Constant(ir.IntType(32),1),pt);
     elif t == "stack":
-        builder.store(ir.Constant(ir.IntType(32),1),pt);  
+        builder.store(ir.Constant(ir.IntType(32),0),pt);  
     else:
       assert(False)
 

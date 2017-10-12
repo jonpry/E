@@ -281,7 +281,7 @@ public final class TestClass {
     }
 
     public static void new_test(int j){
-        ClassB theB;// = new ClassB();
+        ClassB theB = new ClassB();
     }
 
     public static int main() throws Exception {
