@@ -125,15 +125,28 @@ def size_of(t,builder):
    sz = builder.ptrtoint(sz,ir.IntType(32))
    return sz
 
-def create_array_type(t):
+def get_array_type(t):
    return ir.LiteralStructType([rtti_type,ir.ArrayType(ir.IntType(32),4),ir.ArrayType(t,0)])
+
+def is_array(t):
+   if not isinstance(t,ir.Aggregate):
+      return False
+   if len(t.elements) != 3:
+      return False
+   t = t.elements[2]
+   if not isinstance(t,ir.ArrayType):
+      return False
+   if t.count != 0:
+      return False
+   return True
+
 
 def emit_creator(c,pas,builder):
    if "BasicType" in c:
      t = get_type(c,builder)
      a = c["ArrayCreatorRest"][0]
      d = emit_expression(a["DimExpr"][0]["Expression"][0],pas,builder)
-     nt = create_array_type(t)
+     nt = get_array_type(t)
      sz = size_of(nt,builder)
      sz2 = size_of(t,builder)
      sz = builder.add(sz,sz2)
@@ -860,34 +873,42 @@ def emit_local_decl(t,lv,pas,builder):
 
 
 def get_type(t,module):
+   has_dim = "Dim" in t
+   ret = None
    if "BasicType" in t:
      if "uint" in t["BasicType"][0]:
-       return ir.IntType(32)
+       ret = ir.IntType(32)
      if "int" in t["BasicType"][0]:
-       return SIntType(32)
+       ret = SIntType(32)
      if "ulong" in t["BasicType"][0]:
-       return ir.IntType(64)
+       ret = ir.IntType(64)
      if "long" in t["BasicType"][0]:
-       return SIntType(64)
+       ret = SIntType(64)
      if "ushort" in t["BasicType"][0]:
-       return ir.IntType(16)
+       ret = ir.IntType(16)
      if "short" in t["BasicType"][0]:
-       return SIntType(16)
+       ret = SIntType(16)
      if "uchar" in t["BasicType"][0]:
-       return ir.IntType(8)
+       ret = ir.IntType(8)
      if "char" in t["BasicType"][0]:
-       return SIntType(8)
+       ret = SIntType(8)
      if "float" in t["BasicType"][0]:
-       return ir.FloatType()
+       ret = ir.FloatType()
      if "double" in t["BasicType"][0]:
-       return ir.DoubleType()
+       ret = ir.DoubleType()
      if "boolean" in t["BasicType"][0]:
-       return ir.IntType(1)
-   if "ClassType" in t:
+       ret = ir.IntType(1)
+   elif "ClassType" in t:
      ident = t["ClassType"][0]["Identifier"][0]
      if ident == "String":
-        return string_type.as_pointer()
-     return context.classs.get_class_type(ident,module)
+        ret = string_type.as_pointer()
+     else:
+        ret = context.classs.get_class_type(ident,module)
+   
+   if ret != None:
+     if has_dim:
+        ret = get_array_type(ret)
+     return ret
 
    print json.dumps(t)	
    assert(False)
