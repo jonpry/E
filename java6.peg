@@ -418,7 +418,7 @@ ConstantExpression
     ;
 
 LeftHandSide
-    = (THIS DOT)? QualifiedIdentifier
+    = (THIS DOT)? QualifiedIdentifier DimExpr*
     ;
 
 Expression

@@ -122,11 +122,16 @@ def emit_call(tup,suf,pas,builder,memory):
 
 def size_of(t,builder):
    sz = builder.gep(builder.inttoptr(ir.Constant(ir.IntType(64),0),t.as_pointer()),[ir.Constant(ir.IntType(32),1)])
-   sz = builder.ptrtoint(sz,ir.IntType(32))
+   sz = builder.ptrtoint(sz,ir.IntType(64))
    return sz
 
 def get_array_type(t):
-   return ir.LiteralStructType([rtti_type,ir.ArrayType(ir.IntType(32),4),ir.ArrayType(t,0)])
+   return ir.LiteralStructType([rtti_type,ir.ArrayType(ir.IntType(32),4),ir.ArrayType(ir.IntType(32),0)])
+
+def get_array_elem(v,e,builder):
+   e = builder.zext(e,ir.IntType(32))
+   p = builder.gep(v,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),2),e])
+   return p
 
 def is_array(t):
    if not isinstance(t,ir.Aggregate):
@@ -150,7 +155,7 @@ def emit_creator(c,pas,builder):
      sz = size_of(nt,builder)
      sz2 = size_of(t,builder)
      sz = builder.add(sz,sz2)
-     ret = builder.call(context.get("malloc")["func"]["func"], [sz])
+     ret = builder.call(context.get("calloc")["func"]["func"], [ir.Constant(ir.IntType(64),1),sz])
      ret = builder.bitcast(ret,nt.as_pointer())
      initial_ref_cnt(ret,0,"memory",builder)
      return ret
@@ -161,7 +166,7 @@ def emit_creator(c,pas,builder):
      t = cz['class_name']
      t += ".#" + t.split(".")[-1]
      at = context.classs.get_class_type(ident,builder.module)
-     ret = builder.call(context.get("malloc")["func"]["func"], [size_of(at,builder)])
+     ret = builder.call(context.get("calloc")["func"]["func"], [ir.Constant(ir.IntType(64),1),size_of(at,builder)])
      ret = builder.bitcast(ret,at.as_pointer())
      initial_ref_cnt(ret,0,"memory",builder)
      func = {'func' : context.get(t)['func'], 'this': ret}
@@ -178,6 +183,11 @@ def emit_primary(p,pas,builder):
          if "Arguments" in suf:
            tup = context.get(var)
            return emit_call(tup,suf,pas,builder,None)
+         if "LBRK" in suf: #Dimension
+            e = emit_expression(suf["Expression"][0],pas,builder)
+            t = context.get(var,builder)
+            t = get_array_elem(t,e,builder)
+            return builder.load(t)
       else:
          t = context.get(var,builder)
          if context.is_pointer(t):
@@ -401,10 +411,15 @@ def emit_expression(se, pas, builder):
       v = emit_conditional_expression(se["ConditionalExpression"][0],pas,builder)
    if "LeftHandSide" in se:
       for i in range(len(se["LeftHandSide"])):
-         var = se["LeftHandSide"][i]["QualifiedIdentifier"][0]
+         ls = se["LeftHandSide"][i]
+         var = ls["QualifiedIdentifier"][0]
          op = se["AssignmentOperator"][i]
-
          cv = context.get(var,builder)
+         if "DimExpr" in ls:
+            de = ls["DimExpr"][0]
+            e = de["Expression"][0]
+            e = emit_expression(e,pas,builder)
+            cv = get_array_elem(cv,e,builder)
          if "EQU" in op:
              if context.is_pointer(cv):
                if isinstance(cv.type.pointee,ir.Aggregate):
@@ -1155,9 +1170,9 @@ def emit_print_funcs(module):
     context.funcs.create("llvm.lifetime.end",{"func" : fn, "names" : [], "ret" : ir.VoidType(), "static" : True, "allocs" : {}})
 
     #memory
-    fnty = ir.FunctionType(ir.IntType(8).as_pointer(), [ir.IntType(32)])
-    fn = ir.Function(module, fnty, name="malloc")
-    context.funcs.create("malloc",{"func" : fn, "names" : [], "ret" : ir.VoidType(), "static" : True, "allocs" : {}})
+    fnty = ir.FunctionType(ir.IntType(8).as_pointer(), [ir.IntType(64),ir.IntType(64)])
+    fn = ir.Function(module, fnty, name="calloc")
+    context.funcs.create("calloc",{"func" : fn, "names" : [], "ret" : ir.VoidType(), "static" : True, "allocs" : {}})
 
     fnty = ir.FunctionType(ir.VoidType(), [ir.IntType(8).as_pointer()])
     fn = ir.Function(module, fnty, name="free")
