@@ -1,0 +1,531 @@
+# -*- coding: utf-8 -*-
+###############################################################################
+# Name: arpeggio.py
+# Purpose: PEG parser interpreter
+# Author: Igor R. Dejanović <igor DOT dejanovic AT gmail DOT com>
+# Copyright: (c) 2009-2017 Igor R. Dejanović <igor DOT dejanovic AT gmail DOT com>
+# License: MIT License
+#
+# This is an implementation of packrat parser interpreter based on PEG
+# grammars. Grammars are defined using Python language constructs or the PEG
+# textual notation.
+###############################################################################
+
+from __future__ import print_function, unicode_literals
+import sys
+import codecs
+import re
+import bisect
+from arpeggio.utils import isstr
+import types
+
+__version__ = "1.7.dev"
+
+if sys.version < '3':
+    text = unicode
+else:
+    text = str
+
+DEFAULT_WS = '\t\n\r '
+NOMATCH_MARKER = 0
+
+
+class ArpeggioError(Exception):
+    """
+    Base class for arpeggio errors.
+    """
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return repr(self.message)
+
+
+class GrammarError(ArpeggioError):
+    """
+    Error raised during parser building phase used to indicate error in the
+    grammar definition.
+    """
+
+
+class SemanticError(ArpeggioError):
+    """
+    Error raised during the phase of semantic analysis used to indicate
+    semantic error.
+    """
+
+
+class NoMatch(Exception):
+    """
+    Exception raised by the Match classes during parsing to indicate that the
+    match is not successful.
+
+    Args:
+        rules (list of ParsingExpression): Rules that are tried at the position
+            of the exception.
+        position (int): A position in the input stream where exception
+            occurred.
+        parser (Parser): An instance of a parser.
+    """
+    def __init__(self, rules, position, parser):
+        self.rules = rules
+        self.position = position
+        self.parser = parser
+
+    def __str__(self):
+        def rule_to_exp_str(rule):
+            if hasattr(rule, '_exp_str'):
+                # Rule may override expected report string
+                return rule._exp_str
+            elif rule.root:
+                return rule.rule_name
+            elif isinstance(rule, Match) and \
+                    not isinstance(rule, EndOfFile):
+                return "'{}'".format(rule.to_match)
+            else:
+                return rule.name
+
+        if not self.rules:
+            err_message = "Not expected input"
+        else:
+            what_is_expected = ["{}".format(rule_to_exp_str(r))
+                                for r in self.rules]
+            what_str = " or ".join(what_is_expected)
+            err_message = "Expected {}".format(what_str)
+
+        return "{} at position {}{} => '{}'."\
+            .format(err_message,
+                    "{}:".format(self.parser.file_name)
+                    if self.parser.file_name else "",
+                    text(self.parser.pos_to_linecol(self.position)),
+                    self.parser.context(position=self.position))
+
+    def __unicode__(self):
+        return self.__str__()
+
+
+def flatten(_iterable):
+    '''Flattening of python iterables.'''
+    result = []
+    for e in _iterable:
+        if hasattr(e, "__iter__") and not type(e) in [text, NonTerminal]:
+            result.extend(flatten(e))
+        else:
+            result.append(e)
+    return result
+
+
+class DebugPrinter(object):
+    """
+    Mixin class for adding debug print support.
+
+    Attributes:
+        debug (bool): If true debugging messages will be printed.
+        _current_ident(int): Current identation level for prints.
+    """
+
+    def __init__(self, **kwargs):
+
+        self.debug = kwargs.pop("debug", False)
+        self._current_ident = 0
+
+        super(DebugPrinter, self).__init__(**kwargs)
+
+    def dprint(self, message, ident_change=0):
+        """
+        Handle debug message. Current implementation will print to stdout using
+        the current identation level.
+        """
+        if ident_change < 0:
+            self._current_ident += ident_change
+
+        print(("%s%s" % ("   " * self._current_ident, message)))
+
+        if ident_change > 0:
+            self._current_ident += ident_change
+
+
+# ---------------------------------------------------------
+# Parser Model (PEG Abstract Semantic Graph) elements
+
+
+class ParsingExpression(object):
+    """
+    An abstract class for all parsing expressions.
+    Represents the node of the Parser Model.
+
+    Attributes:
+        elements: A list (or other python object) used as a staging structure
+            for python based grammar definition. Used in _from_python for
+            building nodes list of child parser expressions.
+        rule_name (str): The name of the parser rule if this is the root rule.
+        root (bool):  Does this parser expression represents the
+            root of the parser rule? The root parser rule will create
+            non-terminal node of the parse tree during parsing.
+        nodes (list of ParsingExpression): A list of child parser expressions.
+        suppress (bool): If this is set to True than no ParseTreeNode will be
+            created for this ParsingExpression. Default False.
+    """
+    def __init__(self, *elements, **kwargs):
+
+        if len(elements) == 1:
+            elements = elements[0]
+        self.elements = elements
+
+        self.rule_name = kwargs.get('rule_name', '')
+        self.root = kwargs.get('root', False)
+
+        nodes = kwargs.get('nodes', [])
+        if not hasattr(nodes, '__iter__'):
+            nodes = [nodes]
+        self.nodes = nodes
+
+        self.suppress = kwargs.get('suppress', False)
+
+        # Memoization. Every node cache the parsing results for the given input
+        # positions.
+        self._result_cache = {}  # position -> parse tree at the position
+
+    @property
+    def desc(self):
+        return "{}{}".format(self.name, "-" if self.suppress else "")
+
+    @property
+    def name(self):
+        if self.root:
+            return "%s=%s" % (self.rule_name, self.__class__.__name__)
+        else:
+            return self.__class__.__name__
+
+    @property
+    def id(self):
+        if self.root:
+            return self.rule_name
+        else:
+            return id(self)
+
+    def _clear_cache(self, processed=None):
+        """
+        Clears memoization cache. Should be called on input change and end
+        of parsing.
+
+        Args:
+            processed (set): Set of processed nodes to prevent infinite loops.
+        """
+
+        self._result_cache = {}
+
+        if not processed:
+            processed = set()
+
+        for node in self.nodes:
+            if node not in processed:
+                processed.add(node)
+                node._clear_cache(processed)
+
+    def parse(self, parser):
+
+        if parser.debug:
+            name = self.name
+            if name.startswith('__asgn'):
+                name = "{}[{}]".format(self.name, self._attr_name)
+            parser.dprint(">> Matching rule {}{} at position {} => {}"
+                          .format(name,
+                                  " in {}".format(parser.in_rule)
+                                  if parser.in_rule else "",
+                                  parser.position,
+                                  parser.context()), 1)
+
+        # Current position could change in recursive calls
+        # so save it.
+        c_pos = parser.position
+
+        # Memoization.
+        # If this position is already parsed by this parser expression use
+        # the result
+        if parser.memoization:
+            try:
+                result, new_pos = self._result_cache[c_pos]
+                parser.position = new_pos
+                parser.cache_hits += 1
+                if parser.debug:
+                    parser.dprint(
+                        "** Cache hit for [{}, {}] = '{}' : new_pos={}"
+                        .format(name, c_pos, text(result), text(new_pos)))
+                    parser.dprint(
+                        "<<+ Matched rule {} at position {}"
+                        .format(name, new_pos), -1)
+
+                # If NoMatch is recorded at this position raise.
+                if result is NOMATCH_MARKER:
+                    raise parser.nm
+
+                # else return cached result
+                return result
+
+            except KeyError:
+                parser.cache_misses += 1
+
+        # Remember last parsing expression and set this as
+        # the new last.
+        last_pexpression = parser.last_pexpression
+        parser.last_pexpression = self
+
+        if self.rule_name:
+            # If we are entering root rule
+            # remember previous root rule name and set
+            # this one on the parser to be available for
+            # debugging messages
+            previous_root_rule_name = parser.in_rule
+            parser.in_rule = self.rule_name
+
+        try:
+            result = self._parse(parser)
+            if self.suppress or (type(result) is list and
+                                 result and result[0] is None):
+                result = None
+
+        except NoMatch:
+            parser.position = c_pos  # Backtracking
+            # Memoize NoMatch at this position for this rule
+            if parser.memoization:
+                self._result_cache[c_pos] = (NOMATCH_MARKER, c_pos)
+            raise
+
+        finally:
+            # Recover last parsing expression.
+            parser.last_pexpression = last_pexpression
+
+            if parser.debug:
+                parser.dprint("<<{} rule {}{} at position {} => {}"
+                              .format("- Not matched"
+                                      if parser.position is c_pos
+                                      else "+ Matched",
+                                      name,
+                                      " in {}".format(parser.in_rule)
+                                      if parser.in_rule else "",
+                                      parser.position,
+                                      parser.context()), -1)
+
+            # If leaving root rule restore previous root rule name.
+            if self.rule_name:
+                parser.in_rule = previous_root_rule_name
+
+        # For root rules flatten non-terminal/list
+        if self.root and result and not isinstance(result, Terminal):
+            if not isinstance(result, NonTerminal):
+                result = flatten(result)
+
+            # Tree reduction will eliminate Non-terminal with single child.
+            if parser.reduce_tree and len(result) == 1:
+                result = result[0]
+
+            # If the result is not parse tree node it must be a plain list
+            # so create a new NonTerminal.
+            if not isinstance(result, ParseTreeNode):
+                result = NonTerminal(self, result)
+
+        # Result caching for use by memoization.
+        if parser.memoization:
+            self._result_cache[c_pos] = (result, parser.position)
+
+        return result
+
+
+class Sequence(ParsingExpression):
+    """
+    Will match sequence of parser expressions in exact order they are defined.
+    """
+
+    def __init__(self, *elements, **kwargs):
+        super(Sequence, self).__init__(*elements, **kwargs)
+        self.ws = kwargs.pop('ws', None)
+        self.skipws = kwargs.pop('skipws', None)
+
+    def _parse(self, parser):
+        results = []
+        c_pos = parser.position
+
+        if self.ws is not None:
+            old_ws = parser.ws
+            parser.ws = self.ws
+
+        if self.skipws is not None:
+            old_skipws = parser.skipws
+            parser.skipws = self.skipws
+
+        # Prefetching
+        append = results.append
+
+        try:
+            for e in self.nodes:
+                result = e.parse(parser)
+                if result:
+                    append(result)
+
+        except NoMatch:
+            parser.position = c_pos     # Backtracking
+            raise
+
+        finally:
+            if self.ws is not None:
+                parser.ws = old_ws
+            if self.skipws is not None:
+                parser.skipws = old_skipws
+
+        if results:
+            return results
+
+
+class OrderedChoice(Sequence):
+    """
+    Will match one of the parser expressions specified. Parser will try to
+    match expressions in the order they are defined.
+    """
+    def _parse(self, parser):
+        result = None
+        match = False
+        c_pos = parser.position
+        for e in self.nodes:
+            try:
+                result = e.parse(parser)
+                if result is not None:
+                    match = True
+                    result = [result]
+                    break
+            except NoMatch:
+                parser.position = c_pos  # Backtracking
+
+        if not match:
+            parser._nm_raise(self, c_pos, parser)
+
+        return result
+
+
+class Repetition(ParsingExpression):
+    """
+    Base class for all repetition-like parser expressions (?,*,+)
+    Args:
+        eolterm(bool): Flag that indicates that end of line should
+            terminate repetition match.
+    """
+    def __init__(self, *elements, **kwargs):
+        super(Repetition, self).__init__(*elements, **kwargs)
+        self.eolterm = kwargs.get('eolterm', False)
+        self.sep = kwargs.get('sep', None)
+
+
+class Optional(Repetition):
+    """
+    Optional will try to match parser expression specified and will not fail
+    in case match is not successful.
+    """
+    def _parse(self, parser):
+        result = None
+        c_pos = parser.position
+
+        try:
+            result = [self.nodes[0].parse(parser)]
+        except NoMatch:
+            parser.position = c_pos  # Backtracking
+
+        return result
+
+
+class ZeroOrMore(Repetition):
+    """
+    ZeroOrMore will try to match parser expression specified zero or more
+    times. It will never fail.
+    """
+    def _parse(self, parser):
+        results = []
+
+        if self.eolterm:
+            # Remember current eolterm and set eolterm of
+            # this repetition
+            old_eolterm = parser.eolterm
+            parser.eolterm = self.eolterm
+
+        # Prefetching
+        append = results.append
+        p = self.nodes[0].parse
+        sep = self.sep.parse if self.sep else None
+        result = None
+
+        while True:
+            try:
+                c_pos = parser.position
+                if sep and result:
+                    sep_result = sep(parser)
+                    if not sep_result:
+                        break
+                    append(sep_result)
+                result = p(parser)
+                if not result:
+                    break
+                append(result)
+            except NoMatch:
+                parser.position = c_pos  # Backtracking
+                break
+
+        if self.eolterm:
+            # Restore previous eolterm
+            parser.eolterm = old_eolterm
+
+        return results
+
+
+class OneOrMore(Repetition):
+    """
+    OneOrMore will try to match parser expression specified one or more times.
+    """
+    def _parse(self, parser):
+        results = []
+        first = True
+
+        if self.eolterm:
+            # Remember current eolterm and set eolterm of
+            # this repetition
+            old_eolterm = parser.eolterm
+            parser.eolterm = self.eolterm
+
+        # Prefetching
+        append = results.append
+        p = self.nodes[0].parse
+        sep = self.sep.parse if self.sep else None
+        result = None
+
+        try:
+            while True:
+                try:
+                    c_pos = parser.position
+                    if sep and result:
+                        sep_result = sep(parser)
+                        if not sep_result:
+                            break
+                        append(sep_result)
+                    result = p(parser)
+                    if not result:
+                        break
+                    append(result)
+                    first = False
+                except NoMatch:
+                    parser.position = c_pos  # Backtracking
+
+                    if first:
+                        raise
+
+                    break
+        finally:
+            if self.eolterm:
+                # Restore previous eolterm
+                parser.eolterm = old_eolterm
+
+        return results
+
+
+class UnorderedGroup(Repetition):
+    """
+    Will try to match all of the parsing expression in any order.
+    """
+
