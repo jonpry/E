@@ -225,9 +225,17 @@ def emit_unary_expression(ue,pas,builder):
 
    if "PostfixOp" in ue:
       e = ue["PostfixOp"][0]
-      ident = ue["Primary"][0]["QualifiedIdentifier"][0]
+      prim = ue["Primary"][0]
+      ident = prim["QualifiedIdentifier"][0]
       t = context.get(ident,builder)
       ot = t
+
+      if "IdentifierSuffix" in prim:
+         ids = prim["IdentifierSuffix"][0]
+         elem = emit_expression(ids["Expression"][0],pas,builder)
+         t = get_array_elem(t,elem,builder)
+         ot = t
+
       if context.is_pointer(t):
          t = builder.load(t)
       if "INC" in e:
