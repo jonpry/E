@@ -126,7 +126,7 @@ def size_of(t,builder):
    return sz
 
 def get_array_type(t):
-   return ir.LiteralStructType([rtti_type,ir.ArrayType(ir.IntType(32),4),ir.ArrayType(ir.IntType(32),0)])
+   return ir.LiteralStructType([rtti_type,ir.IntType(32),ir.ArrayType(ir.IntType(32),0)])
 
 def get_array_elem(v,e,builder):
    e = builder.zext(e,ir.IntType(32))
@@ -154,6 +154,7 @@ def emit_creator(c,pas,builder):
      nt = get_array_type(t)
      sz = size_of(nt,builder)
      sz2 = size_of(t,builder)
+     sz2 = builder.mul(sz2,builder.zext(d,ir.IntType(64)))
      sz = builder.add(sz,sz2)
      ret = builder.call(context.get("calloc")["func"]["func"], [ir.Constant(ir.IntType(64),1),sz])
      ret = builder.bitcast(ret,nt.as_pointer())
