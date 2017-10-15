@@ -295,7 +295,7 @@ def get_one_poly(var,obj,objclz,builder):
         return v
       return get_one_poly(var,obj,objclz['extends'],builder)
 
-def get(var,builder=None,test=False):  
+def get_no_length(var,builder,test):  
    thistype = classs.clz
    if len(thiss.thiss) == 0 or thiss.thiss[-1] == None:
       thisvar = None
@@ -324,6 +324,14 @@ def get(var,builder=None,test=False):
        thisvar = e
        thistype = classs.get_class_fq(e.type.pointee.name)
 
+def get(var,builder=None,test=False):  
+   var = var.split(".")
+   if var[-1] == "length":
+     var = ".".join(var[:-1])
+     ary = get_no_length(var,builder,test)
+     return emit.get_array_length(ary,builder)
+   var = ".".join(var)
+   return get_no_length(var,builder,test)
 
 def set(var, val, builder=None):
    if var in context:

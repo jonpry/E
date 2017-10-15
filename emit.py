@@ -133,6 +133,10 @@ def get_array_elem(v,e,builder):
    p = builder.gep(v,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),2),e])
    return p
 
+def get_array_length(v,builder):
+   p = builder.gep(v,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
+   return builder.load(p)
+
 def is_array(t):
    if not isinstance(t,ir.Aggregate):
       return False
@@ -159,6 +163,8 @@ def emit_creator(c,pas,builder):
      ret = builder.call(context.get("calloc")["func"]["func"], [ir.Constant(ir.IntType(64),1),sz])
      ret = builder.bitcast(ret,nt.as_pointer())
      initial_ref_cnt(ret,0,"memory",builder)
+     lp = builder.gep(ret,[ir.Constant(ir.IntType(32),0),ir.Constant(ir.IntType(32),1)])
+     builder.store(builder.zext(d,ir.IntType(32)),lp)
      return ret
    else:
      ident = c["CreatedName"][0]["Identifier"][0]
